@@ -1,0 +1,119 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-sans: "Geist Variable", "Segoe UI", system-ui, sans-serif;
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+    --radius-sm: calc(var(--radius) * 0.65);
+    --radius-md: calc(var(--radius) * 0.82);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.35);
+}
+
+:root {
+    --background: oklch(0.98 0.006 125);
+    --foreground: oklch(0.2 0.018 155);
+    --card: oklch(1 0 0);
+    --card-foreground: var(--foreground);
+    --popover: oklch(1 0 0);
+    --popover-foreground: var(--foreground);
+    --primary: oklch(0.39 0.105 151);
+    --primary-foreground: oklch(0.985 0.006 125);
+    --secondary: oklch(0.93 0.018 135);
+    --secondary-foreground: oklch(0.29 0.06 151);
+    --muted: oklch(0.945 0.009 125);
+    --muted-foreground: oklch(0.5 0.025 145);
+    --accent: oklch(0.91 0.035 145);
+    --accent-foreground: oklch(0.29 0.06 151);
+    --destructive: oklch(0.56 0.22 27);
+    --border: oklch(0.88 0.015 135);
+    --input: oklch(0.86 0.018 135);
+    --ring: oklch(0.48 0.11 151);
+    --radius: 0.75rem;
+}
+
+.dark {
+    --background: oklch(0.17 0.018 155);
+    --foreground: oklch(0.95 0.009 125);
+    --card: oklch(0.22 0.02 155);
+    --card-foreground: var(--foreground);
+    --popover: oklch(0.22 0.02 155);
+    --popover-foreground: var(--foreground);
+    --primary: oklch(0.72 0.13 151);
+    --primary-foreground: oklch(0.17 0.018 155);
+    --secondary: oklch(0.28 0.028 155);
+    --secondary-foreground: var(--foreground);
+    --muted: oklch(0.26 0.018 155);
+    --muted-foreground: oklch(0.72 0.02 135);
+    --accent: oklch(0.31 0.045 151);
+    --accent-foreground: var(--foreground);
+    --destructive: oklch(0.7 0.18 25);
+    --border: oklch(1 0 0 / 12%);
+    --input: oklch(1 0 0 / 16%);
+    --ring: oklch(0.65 0.12 151);
+}
+
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+    html {
+        @apply font-sans;
+        scroll-behavior: smooth;
+    }
+    body {
+        @apply m-0 min-w-80 bg-background text-foreground;
+    }
+    button {
+        cursor: pointer;
+    }
+}
+
+.map-price-marker {
+    border: 1px solid color-mix(in oklch, var(--primary), black 16%);
+    border-radius: 999px;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    padding: 0.42rem 0.65rem;
+    font: 700 0.75rem/1 var(--font-sans);
+    box-shadow: 0 8px 24px color-mix(in oklch, var(--primary), transparent 72%);
+    transform: translateY(-3px);
+}
+
+.map-price-marker:hover,
+.map-price-marker:focus-visible {
+    transform: translateY(-5px) scale(1.04);
+    outline: 3px solid color-mix(in oklch, var(--ring), transparent 55%);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+    }
+}

@@ -1,0 +1,18 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "lib": ["ESNext", "DOM", "DOM.Iterable"],
+        "skipLibCheck": true,
+        "strict": true,
+        "noEmit": true,
+        "jsx": "react-jsx",
+        "types": ["bun-types", "google.maps", "vite/client"],
+        "allowImportingTsExtensions": true,
+        "paths": {
+            "@/*": ["./src/*"]
+        }
+    },
+    "include": ["src", "tests/elysia", "vite.config.ts"]
+}

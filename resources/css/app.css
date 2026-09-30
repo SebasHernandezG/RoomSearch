@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    body { @apply bg-background text-foreground; }
+    [x-cloak] { display: none !important; }
+}
+
+@layer components {
+    .roomie-shell { @apply min-h-screen bg-[#f0f1ed]; }
+    .roomie-card { @apply border border-[#d9ddd6] bg-[#f8f8f5] shadow-sm; }
+    .roomie-input { @apply mt-2 block w-full border border-[#b8c0b9] bg-white px-3 py-3 text-[#18211f] placeholder:text-[#69716d] focus:border-[#8b6a16] focus:ring-[#8b6a16]; }
+    .roomie-label { @apply text-xs font-semibold uppercase tracking-widest text-[#56615c]; }
+    .roomie-button { @apply inline-flex items-center justify-center bg-[#18211f] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#32423d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8b6a16]; }
+    .roomie-button-alt { @apply inline-flex items-center justify-center border border-[#8b6a16] bg-[#f7efd7] px-5 py-3 text-sm font-semibold text-[#624b12] transition hover:bg-[#eee1b8]; }
+    .roomie-title { @apply font-['Libre_Caslon_Text'] font-normal tracking-tight text-[#18211f]; }
+}

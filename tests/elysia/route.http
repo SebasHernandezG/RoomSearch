@@ -1,0 +1,25 @@
+# Configure GOOGLE_MAPS_API_KEY in .env (server-only), enable Google Routes API
+# with billing, then start the backend with: bun run dev:server
+# Both /route and /api/route are supported. The Vite proxy uses /api/route.
+@baseUrl = http://localhost:3000
+
+### Driving route in San Jose, Costa Rica
+POST {{baseUrl}}/route
+Content-Type: application/json
+
+{
+  "origin": { "lat": 9.9325, "lng": -84.08 },
+  "destination": { "lat": 9.935, "lng": -84.053 }
+}
+
+# Illustrative response only; distance, duration and geometry vary:
+# { "duration": "165s", "distanceMeters": 772, "encodedPolyline": "ipkcFfichVnP@j@BLoFVwM{E?" }
+# duration uses Google's seconds-string format, including optional fractions.
+# Decode encodedPolyline using the map's geometry library to draw it.
+# Errors: { "code": "ROUTE_NOT_FOUND", "message": "..." }
+# 422: invalid input; 404: no driving route; 429: local/provider rate limit;
+# 503: missing key or Google rejection; 502: network/upstream/malformed reply;
+# 504: timeout (8 seconds, including reading the body).
+# 429 includes Retry-After in seconds. No automatic retries are billed.
+# Budget: 60 calls/minute per app process, shared across all visitors/aliases.
+# For multiple replicas, enforce a shared limit in the gateway or shared store.
