@@ -1,12 +1,13 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { ArrowRightIcon, Building2Icon, MoonIcon, SunIcon } from "lucide-react";
-import { api, ApiError, type User } from "@/client/api";
+import { ArrowRightIcon, MoonIcon, SunIcon } from "lucide-react";
+import { api, ApiError, googleAuthErrorMessage, type User } from "@/client/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import roomSearchLogo from "@/client/assets/roomsearch-brand.jpg";
 
 export function AuthGate({ children }: {
     children: (user: User, onLogout: () => void) => ReactNode;
@@ -17,7 +18,17 @@ export function AuthGate({ children }: {
     const [attempt, setAttempt] = useState(0);
     const [mode, setMode] = useState<"login" | "register">("login");
     const [pending, setPending] = useState(false);
-    const [error, setError] = useState("");
+    const [error, setError] = useState(() => {
+        const url = new URL(window.location.href);
+        const message = googleAuthErrorMessage(url.searchParams.get("google_error"));
+
+        if (url.searchParams.has("google_error")) {
+            url.searchParams.delete("google_error");
+            window.history.replaceState({}, "", url);
+        }
+
+        return message;
+    });
     const [dark, setDark] = useState(() => {
         const saved = localStorage.getItem("roomies-theme");
         return saved ? saved === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
@@ -77,8 +88,8 @@ export function AuthGate({ children }: {
         <div className="min-h-[100dvh] bg-background text-foreground">
             <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6 sm:px-10">
                 <span className="flex items-center gap-3 text-xl font-semibold tracking-tight">
-                    <span className="grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground"><Building2Icon aria-hidden="true" /></span>
-                    Roomies
+                    <img className="size-10 rounded-xl object-cover" src={roomSearchLogo} alt="" />
+                    RoomSearch
                 </span>
                 <Button variant="ghost" size="icon" aria-label={dark ? "Usar tema claro" : "Usar tema oscuro"} onClick={() => setDark(!dark)}>
                     {dark ? <SunIcon /> : <MoonIcon />}

@@ -25,6 +25,24 @@ export class ApiError extends Error {
     }
 }
 
+const googleAuthErrors: Record<string, string> = {
+    cancelled: "El inicio de sesión con Google fue cancelado.",
+    existing_account: "Ese correo ya tiene una cuenta. Ingresa con tu contraseña.",
+    failed: "Google rechazó el inicio de sesión. Revisa el secreto y la URI autorizada.",
+    invalid_state: "La sesión de Google venció. Intenta iniciar sesión nuevamente.",
+    not_configured: "El acceso con Google todavía no está configurado.",
+    unavailable: "Google no está disponible en este momento. Intenta nuevamente.",
+    unverified: "Google no confirmó que ese correo esté verificado.",
+};
+
+export function googleAuthErrorMessage(code: string | null): string {
+    if (!code) {
+        return "";
+    }
+
+    return googleAuthErrors[code] ?? "No fue posible iniciar sesión con Google.";
+}
+
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
     const response = await fetch(`/api${path}`, {
         credentials: "include",

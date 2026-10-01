@@ -8,8 +8,8 @@ import {
 } from "react";
 import {
     ArrowRightIcon,
-    Building2Icon,
     ListIcon,
+    LogOutIcon,
     MapIcon,
     MoonIcon,
     PlusIcon,
@@ -56,6 +56,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { api, type Listing, type User } from "@/client/api";
 import { AuthGate } from "@/client/components/AuthGate";
+import roomSearchLogo from "@/client/assets/roomsearch-brand.jpg";
 
 const ListingMap = lazy(() =>
     import("@/client/components/ListingMap").then((module) => ({
@@ -190,10 +191,12 @@ function ListingsApp({ user, onLogout }: { user: User; onLogout: () => void }) {
                         href="#top"
                         className="flex items-center gap-3 text-lg font-semibold tracking-tight"
                     >
-                        <span className="grid size-10 place-items-center rounded-lg bg-primary text-primary-foreground">
-                            <Building2Icon aria-hidden="true" />
-                        </span>
-                        Roomies
+                        <img
+                            className="size-10 rounded-lg object-cover"
+                            src={roomSearchLogo}
+                            alt=""
+                        />
+                        RoomSearch
                     </a>
                     <nav
                         className="flex items-center gap-2"
@@ -211,7 +214,11 @@ function ListingsApp({ user, onLogout }: { user: User; onLogout: () => void }) {
                         </Button>
                         <span className="hidden text-sm text-muted-foreground sm:inline">Hola, {user.name}</span>
                         <Button onClick={() => setShowCreate(true)}><PlusIcon data-icon="inline-start" />Publicar</Button>
-                        <Button onClick={logout} variant="ghost">Salir</Button>
+                        <Button onClick={logout} variant="outline">
+                            <LogOutIcon data-icon="inline-start" />
+                            <span className="hidden sm:inline">Cerrar sesión</span>
+                            <span className="sm:hidden">Salir</span>
+                        </Button>
                     </nav>
                 </div>
             </header>

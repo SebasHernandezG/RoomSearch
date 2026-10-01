@@ -43,6 +43,7 @@ export const createGoogleAuth = (database: RoomiesDatabase, options: GoogleAuthO
             url.search = new URLSearchParams({
                 client_id: clientId, redirect_uri: redirectUri, response_type: "code",
                 scope: "openid email profile", state, prompt: "select_account",
+                hl: "es",
                 code_challenge: createHash("sha256").update(verifier).digest("base64url"),
                 code_challenge_method: "S256",
             }).toString();

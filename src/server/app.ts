@@ -191,15 +191,20 @@ export const createApp = (
                         };
                     },
                     {
-                        body: t.Intersect([
-                            credentialsSchema,
-                            t.Object({
-                                name: t.String({
-                                    minLength: 2,
-                                    maxLength: 120,
-                                }),
+                        body: t.Object({
+                            name: t.String({
+                                minLength: 2,
+                                maxLength: 120,
                             }),
-                        ]),
+                            email: t.String({
+                                format: "email",
+                                maxLength: 255,
+                            }),
+                            password: t.String({
+                                minLength: 8,
+                                maxLength: 255,
+                            }),
+                        }),
                         cookie: sessionCookie,
                     },
                 )

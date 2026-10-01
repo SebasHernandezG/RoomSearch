@@ -54,7 +54,7 @@ describe("Roomies Elysia API", () => {
     });
 
     it("registers a user and returns the authenticated session", async () => {
-        const app = createApp(database);
+        const app = createApp(database).compile();
         const cookie = await register(app, "ana@example.com");
         const response = await app.handle(
             jsonRequest("/api/me", "GET", undefined, cookie),
@@ -63,6 +63,42 @@ describe("Roomies Elysia API", () => {
         expect(await response.json()).toMatchObject({
             user: { name: "ana", email: "ana@example.com" },
         });
+    });
+
+    it("removes the authenticated session on logout", async () => {
+        const app = createApp(database);
+        const cookie = await register(app, "logout@example.com");
+        const logout = await app.handle(
+            jsonRequest("/api/auth/logout", "POST", undefined, cookie),
+        );
+        const response = await app.handle(
+            jsonRequest("/api/me", "GET", undefined, cookie),
+        );
+
+        expect(logout.status).toBe(200);
+        expect(response.status).toBe(401);
+        expect(await response.json()).toEqual({
+            message: "Debes iniciar sesión.",
+        });
+    });
+
+    it("starts Google authentication in Spanish", async () => {
+        const app = createApp(database, {}, {
+            clientId: "google-client-id",
+            clientSecret: "google-client-secret",
+            redirectUri: "http://localhost:3000/api/auth/google/callback",
+        });
+        const response = await app.handle(
+            jsonRequest("/api/auth/google", "GET"),
+        );
+        const location = new URL(response.headers.get("location")!);
+
+        expect(response.status).toBe(302);
+        expect(location.hostname).toBe("accounts.google.com");
+        expect(location.searchParams.get("hl")).toBe("es");
+        expect(location.searchParams.get("redirect_uri")).toBe(
+            "http://localhost:3000/api/auth/google/callback",
+        );
     });
 
     it("creates and publicly filters listings", async () => {
