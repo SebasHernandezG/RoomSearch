@@ -1,0 +1,32 @@
+# Normaliza finales de linea: LF en el repositorio, conversion en Windows.
+* text=auto eol=lf
+
+# Archivos que deben permanecer en CRLF (legacy de Windows).
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binarios: Git no debe tocar su contenido ni sus finales de linea.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.avif binary
+*.ico  binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
+*.otf   binary
+*.pdf   binary
+*.zip   binary
+*.gz    binary
+*.mp4   binary
+*.webm  binary
+
+# Archivos generados: se marcan como generated para que GitHub no los
+# cuente como lenguaje principal del repositorio.
+dist/** linguist-generated=true
+frontend/dist/** linguist-generated=true
+backend/public/build/** linguist-generated=true
