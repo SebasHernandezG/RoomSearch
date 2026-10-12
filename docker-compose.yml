@@ -1,15 +1,22 @@
 services:
   mysql:
     image: mysql:8.4
+    restart: unless-stopped
     environment:
       MYSQL_DATABASE: roomies
       MYSQL_USER: roomies
       MYSQL_PASSWORD: roomies
       MYSQL_ROOT_PASSWORD: root
     ports:
-      - "3308:3306"
+      - '3308:3306'
     volumes:
       - mysql-data:/var/lib/mysql
-      - ./docker/mysql:/docker-entrypoint-initdb.d:ro
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uroot', '-proot']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 volumes:
   mysql-data:
