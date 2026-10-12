@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\EnsureUserHasRole;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -20,6 +22,10 @@ return Application::configure(basePath: dirname(__DIR__))
          * excepciones aqui. Excluir api/* de CSRF sin autenticacion
          * seria relajar RNF-04 a cambio de nada.
          */
+
+        $middleware->alias([
+            'role' => EnsureUserHasRole::class,
+        ]);
 
         /*
          * Proxies de confianza.
@@ -55,4 +61,26 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        /*
+         * El 401 de Laravel dice "Unauthenticated." en ingles, y sale
+         * antes de que ningun middleware propio se entere: el guard
+         * corre primero en la cadena.
+         *
+         * Se traduce aqui y no en el middleware de roles porque el
+         * problema es general: TODA peticion sin token.valido recibe
+         * este mensaje, no solo las que pasan por roles.
+         */
+        $exceptions->render(function (
+            AuthenticationException $e,
+            Request $request,
+        ) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+
+            return response()->json([
+                'message' => trans('auth.sinSesion'),
+            ], 401);
+        });
     })->create();

@@ -25,4 +25,8 @@ return [
 
     'throttle' => 'Demasiados intentos. Volvé a probar en :seconds segundos.',
 
+    'noAutorizado' => 'Esta cuenta no puede hacer eso.',
+
+    'sinSesion' => 'Necesitás iniciar sesión para hacer eso.',
+
 ];
