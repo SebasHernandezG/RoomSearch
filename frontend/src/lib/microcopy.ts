@@ -32,6 +32,19 @@ export const MICROCOPY = {
       detalle: 'Puede ser que la conexión esté lenta. Probá otra vez.',
       reintentar: 'Reintentar',
     },
+
+    /*
+     * RNF-05. El tono importa acá: no es un error, es un alto. Decir
+     * "no pudimos cargar" haría pensar que la página está rota cuando
+     * lo único que hay que hacer es esperar.
+     */
+    espera: {
+      titulo: 'Vamos con calma',
+      detalle: (segundos: number) =>
+        segundos <= 1
+          ? 'Ya podés seguir buscando.'
+          : `Esperá ${segundos} segundos y seguí como siempre.`,
+    },
   },
 
   publicaciones: {
