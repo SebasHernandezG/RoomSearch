@@ -44,6 +44,7 @@ type Props = {
   /** Id de la propiedad resaltada, para RF-3.5. */
   resaltada?: number | null;
   onSeleccionar?: (id: number) => void;
+  onPedirZonaEnVista?: () => void;
   className?: string;
 };
 
@@ -54,6 +55,7 @@ export default function PropertyMap({
   onMoverZona,
   resaltada = null,
   onSeleccionar,
+  onPedirZonaEnVista,
   className = '',
 }: Props) {
   const contenedor = useRef<HTMLDivElement>(null);
@@ -70,8 +72,8 @@ export default function PropertyMap({
 
   // Los callbacks se guardan en refs para no reconstruir el mapa cuando
   // el padre pasa una funcion nueva en cada render.
-  const cb = useRef({ onMoverZona, onSeleccionar });
-  cb.current = { onMoverZona, onSeleccionar };
+  const cb = useRef({ onMoverZona, onSeleccionar, onPedirZonaEnVista });
+  cb.current = { onMoverZona, onSeleccionar, onPedirZonaEnVista };
 
   /*
    * El radio lo elige la persona con el selector, no se deduce del
@@ -276,6 +278,16 @@ export default function PropertyMap({
         role="application"
         aria-label="Mapa de inmuebles"
       />
+
+      {zona && onPedirZonaEnVista && (
+        <button
+          type="button"
+          onClick={onPedirZonaEnVista}
+          className="absolute bottom-4 left-1/2 z-[500] flex min-h-11 -translate-x-1/2 items-center rounded-md bg-forest px-4 text-body font-semibold text-paper shadow-lg transition-colors duration-200 hover:bg-leaf motion-reduce:transition-none"
+        >
+          Buscar en esta zona
+        </button>
+      )}
 
       {zona && (
         <button
