@@ -1,0 +1,36 @@
+# Monorepo Roomies San Carlos
+# Aplica a todo el repositorio: backend (PHP) y frontend (TypeScript).
+# Los subproyectos pueden sobrescribir valores, no redefinir las reglas base.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{php,js,jsx,ts,tsx,mjs,cjs}]
+indent_style = space
+indent_size = 4
+
+[*.{json,jsonc,yaml,yml,css,scss}]
+indent_style = space
+indent_size = 2
+
+[*.md]
+indent_style = space
+indent_size = 2
+# El markdown usa dos espacios finales para un salto de linea.
+trim_trailing_whitespace = false
+
+[*.{vue,svelte,html}]
+indent_style = space
+indent_size = 2
+
+[{compose,docker-compose}.{yml,yaml}]
+indent_style = space
+indent_size = 4
+
+[Makefile]
+indent_style = tab
