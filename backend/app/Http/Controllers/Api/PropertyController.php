@@ -1,50 +1,152 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Property;
+use App\Http\Requests\Api\ListPropertiesRequest;
+use App\Http\Resources\PropertyResource;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Modules\Properties\Enums\PropertyStatus;
+use Modules\Properties\Models\Property;
+use Modules\Properties\Queries\PropertyRadiusQuery;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
+/**
+ * Inmuebles. RF-2.1, RF-3.3 y RF-4.1.
+ *
+ * API sin sesion: RF-1.4 dice que el visitante busca y ve el mapa sin
+ * crear cuenta. La autenticacion entra en RF-1.1 con Sanctum y no se
+ * mezcla aqui.
+ */
 class PropertyController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Listado con busqueda por radio y filtros combinables.
      */
-    public function index()
+    public function index(ListPropertiesRequest $request): AnonymousResourceCollection
     {
-        //
+        $consulta = $this->consultaBase($request);
+
+        if ($request->tienePuntoDeReferencia()) {
+            $radio = new PropertyRadiusQuery(
+                (float) $request->input('lat'),
+                (float) $request->input('lng'),
+                (int) $request->input('radius', PropertyRadiusQuery::RADIO_MAXIMO),
+            );
+
+            $radio->aplicar($consulta);
+        }
+
+        $this->aplicarFiltros($consulta, $request);
+        $this->aplicarOrden($consulta, $request);
+
+        $paginacion = $consulta
+            ->paginate((int) $request->input('per_page', 24))
+            ->withQueryString();
+
+        return PropertyResource::collection($paginacion);
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Detalle de un inmueble.
      */
-    public function store(Request $request)
+    public function show(Request $request, Property $property): PropertyResource
     {
-        //
+        if ($property->status !== PropertyStatus::Activa) {
+            throw new NotFoundHttpException('Este inmueble no esta disponible.');
+        }
+
+        return new PropertyResource($property);
     }
 
     /**
-     * Display the specified resource.
+     * Solo las activas son publicas. RF-2.6.
+     *
+     * @return Builder<Property>
      */
-    public function show(Property $property)
+    private function consultaBase(ListPropertiesRequest $request): Builder
     {
-        //
+        return Property::query()
+            ->where('status', PropertyStatus::Activa->value);
     }
 
     /**
-     * Update the specified resource in storage.
+     * RF-4.1: todos opcionales y combinables.
+     *
+     * @param  Builder<Property>  $consulta
      */
-    public function update(Request $request, Property $property)
-    {
-        //
+    private function aplicarFiltros(
+        Builder $consulta,
+        ListPropertiesRequest $request,
+    ): void {
+        if ($request->filled('type')) {
+            $consulta->where('type', $request->string('type')->value());
+        }
+
+        if ($request->filled('min_rent')) {
+            $consulta->where('monthly_rent', '>=', $request->integer('min_rent'));
+        }
+
+        if ($request->filled('max_rent')) {
+            $consulta->where('monthly_rent', '<=', $request->integer('max_rent'));
+        }
+
+        if ($request->filled('bedrooms')) {
+            $consulta->where('bedrooms', '>=', $request->integer('bedrooms'));
+        }
+
+        if ($request->filled('bathrooms')) {
+            $consulta->where('bathrooms', '>=', $request->integer('bathrooms'));
+        }
+
+        if ($request->has('furnished')) {
+            $consulta->where('furnished', $request->boolean('furnished'));
+        }
+
+        if ($request->has('pets_allowed')) {
+            $consulta->where('pets_allowed', $request->boolean('pets_allowed'));
+        }
+
+        if ($request->has('parking')) {
+            $consulta->where('parking_spaces', '>=', $request->boolean('parking') ? 1 : 0);
+        }
+
+        if ($request->filled('district')) {
+            $consulta->where('district', $request->string('district')->value());
+        }
+
+        // RF-4.3: busqueda por texto, sin distinguir acentos ni mayusculas.
+        if ($request->filled('q')) {
+            $termino = $request->string('q')->trim()->value();
+
+            $consulta->where(function ($q) use ($termino): void {
+                $q->whereRaw('LOWER(title) LIKE ?', ['%'.mb_strtolower($termino).'%'])
+                    ->orWhereRaw('LOWER(district) LIKE ?', ['%'.mb_strtolower($termino).'%'])
+                    ->orWhereRaw('LOWER(neighborhood) LIKE ?', ['%'.mb_strtolower($termino).'%']);
+            });
+        }
     }
 
     /**
-     * Remove the specified resource from storage.
+     * RF-4.2.
+     *
+     * @param  Builder<Property>  $consulta
      */
-    public function destroy(Property $property)
-    {
-        //
+    private function aplicarOrden(
+        Builder $consulta,
+        ListPropertiesRequest $request,
+    ): void {
+        match ($request->input('sort', 'recent')) {
+            'price_asc' => $consulta->orderBy('monthly_rent'),
+            'price_desc' => $consulta->orderByDesc('monthly_rent'),
+            // La consulta de radio ya ordeno por distancia. Sin punto
+            // de referencia se cae a fecha, no a algo arbitrario.
+            'distance' => $consulta->orderBy('distance_meters'),
+            default => $consulta->latest(),
+        };
     }
 }
