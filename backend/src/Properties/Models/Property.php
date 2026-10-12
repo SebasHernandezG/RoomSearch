@@ -13,6 +13,7 @@ use Modules\Properties\Enums\Currency;
 use Modules\Properties\Enums\PropertyStatus;
 use Modules\Properties\Enums\PropertyType;
 use Modules\Properties\Queries\PropertyRadiusQuery;
+use Modules\Properties\Support\PropertyLocation;
 
 /**
  * Un inmueble publicado por un arrendador.
@@ -147,5 +148,21 @@ class Property extends Model
             ->value('longitude');
 
         return $value === null ? null : (float) $value;
+    }
+
+    /**
+     * El punto que se revela al publico. RF-2.5.
+     *
+     * Se prefieren los valores que ya trajo la consulta. PropertyRadiusQuery
+     * los selecciona de paso, y sin esto un listado de 24 inmuebles
+     * hacia 48 consultas extra solo para leer coordenadas.
+     */
+    public function ubicacionPublica(): PropertyLocation
+    {
+        return PropertyLocation::desdePunto(
+            $this->getAttribute('latitud') ?? $this->latitude(),
+            $this->getAttribute('longitud') ?? $this->longitude(),
+            $this->show_exact_location,
+        );
     }
 }
