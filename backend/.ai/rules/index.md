@@ -27,6 +27,7 @@ ninguna, porque se sigue creyendo.
 | [mysql-geoespacial.md](mysql-geoespacial.md) | `src/Properties/**`, migraciones de `properties` | Las tres trampas de MySQL 8.4 que hacen fallar la búsqueda por radio en silencio |
 | [modulos.md](modulos.md) | `src/**` | Cómo está partido el monolito modular y qué va en cada módulo |
 | [api.md](api.md) | `routes/api.php`, `app/Http/**` | Convenciones de la API: validación, Resources, rate limiting |
+| [auth.md](auth.md) | `src/Identity/**`, `app/Http/Middleware/**`, `lang/**` | Tokens, roles, límites de intentos y los 422 en español |
 | [mapa-frontend.md](mapa-frontend.md) | `frontend/src/components/mapa/**`, `frontend/src/components/PantallaBusqueda.tsx` | Los bucles entre mapa, zona y peticiones, y el tamaño del contenedor en Leaflet |
 
 ## Búsqueda rápida
@@ -41,9 +42,9 @@ grep -rin 'invalidate\|leaflet\|zoom' .ai/rules
 
 ## Lo que estas reglas NO cubren
 
-- Autenticación y roles: todavía no existen. Cuando lleguen con RF-1.1,
-  agregar `auth.md`.
-- Publicar un inmueble (RF-2.1): pendiente. Cuando exista, agregar las
-  reglas de transición de estado de `PropertyStatus`.
+- Perfiles de arrendador e inquilino: llegan con RF-1.5. Cuando
+  existan, agregar `profiles.md`.
+- Verificación de correo y recuperación de contraseña: llegan con
+  RF-1.3.
 - Pruebas del frontend: **no hay runner**. Si agregás Vitest o similar,
   documentalo acá, porque es el hueco más grande que queda.
