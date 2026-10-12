@@ -42,6 +42,37 @@ class ListingFlowTest extends TestCase
         $this->assertSame($listing->title, $listing->fresh()->title);
     }
 
+    public function test_unverified_user_cannot_create_a_listing(): void
+    {
+        $user = User::factory()->unverified()->create();
+
+        $this->actingAs($user)->post(route('listings.store'), [
+            'type' => 'offer', 'title' => 'Cuarto luminoso', 'description' => 'Incluye servicios.',
+            'city' => 'San José', 'budget' => 450, 'contact_method' => 'interest',
+        ])->assertRedirect(route('verification.notice'));
+
+        $this->assertDatabaseCount('listings', 0);
+    }
+
+    public function test_unverified_owner_cannot_republish_a_listing(): void
+    {
+        $owner = User::factory()->unverified()->create();
+        $listing = Listing::factory()->for($owner)->create(['is_active' => false]);
+
+        $this->actingAs($owner)->put(route('listings.update', $listing), [
+            'type' => 'offer', 'title' => 'Cuarto luminoso', 'description' => 'Incluye servicios.',
+            'city' => 'San José', 'budget' => 450, 'contact_method' => 'interest', 'is_active' => true,
+        ])->assertRedirect(route('verification.notice'));
+
+        $this->assertFalse($listing->fresh()->is_active);
+    }
+
+    public function test_unverified_user_is_redirected_from_the_publish_form(): void
+    {
+        $this->actingAs(User::factory()->unverified()->create())
+            ->get(route('listings.create'))->assertRedirect(route('verification.notice'));
+    }
+
     public function test_listing_requires_a_city_and_budget(): void
     {
         $this->actingAs(User::factory()->create())->post(route('listings.store'), [])->assertSessionHasErrors(['city', 'budget']);

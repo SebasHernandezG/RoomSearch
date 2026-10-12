@@ -47,6 +47,37 @@ class PasswordResetTest extends TestCase
         });
     }
 
+    public function test_unknown_email_receives_the_same_reset_link_response_as_a_registered_email(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create();
+
+        $registeredResponse = $this->from(route('password.request'))->post(route('password.email'), ['email' => $user->email]);
+        $registeredResponse->assertRedirect(route('password.request'))->assertSessionHasNoErrors()
+            ->assertSessionHas('status', 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.');
+
+        $unknownResponse = $this->from(route('password.request'))->post(route('password.email'), ['email' => 'unknown@example.com']);
+
+        $unknownResponse->assertRedirect(route('password.request'))->assertSessionHasNoErrors()
+            ->assertSessionHas('status', 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.');
+        Notification::assertSentToTimes($user, ResetPassword::class, 1);
+        $this->assertDatabaseMissing('password_reset_tokens', ['email' => 'unknown@example.com']);
+    }
+
+    public function test_throttled_reset_link_requests_keep_the_same_public_response(): void
+    {
+        Notification::fake();
+        $this->freezeTime();
+        $user = User::factory()->create();
+        $this->post(route('password.email'), ['email' => $user->email]);
+
+        $response = $this->from(route('password.request'))->post(route('password.email'), ['email' => $user->email]);
+
+        $response->assertRedirect(route('password.request'))->assertSessionHasNoErrors()
+            ->assertSessionHas('status', 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.');
+        Notification::assertSentToTimes($user, ResetPassword::class, 1);
+    }
+
     public function test_password_can_be_reset_with_valid_token(): void
     {
         Notification::fake();
