@@ -16,6 +16,7 @@ import { ErrorConexion, SinResultados } from './estadosBusqueda';
 import PropertyMap, { RADIOS, type PuntoZona } from './mapa/PropertyMap';
 import SelectorRadio from './mapa/SelectorRadio';
 import { ErrorApi, listarPropiedades, type Filtros } from '../lib/api';
+import { MICROCOPY } from '../lib/microcopy';
 import type { Property } from '../types/property';
 
 type Vista = 'mapa' | 'lista';
@@ -32,6 +33,12 @@ export default function PantallaBusqueda() {
   const [zona, setZona] = useState<PuntoZona | null>(ZONA_INICIAL);
   const [resaltada, setResaltada] = useState<number | null>(null);
   const [favoritos, setFavoritos] = useState<number[]>([]);
+
+  /*
+   * Segundos que faltan para poder volver a pedir, o null si no hay
+   * espera activa. Lo llena el 429 de RNF-05.
+   */
+  const [espera, setEspera] = useState<number | null>(null);
 
   const temporizador = useRef<number | null>(null);
 
@@ -59,6 +66,7 @@ export default function PantallaBusqueda() {
 
       setPropiedades(respuesta.data);
       setTotal(respuesta.meta.total);
+      setEspera(null);
       setEstado('listo');
     } catch (error) {
       // 422 es validacion del cliente: el backend ya explico que esta
@@ -66,6 +74,21 @@ export default function PantallaBusqueda() {
       if (error instanceof ErrorApi && error.codigo === 422) {
         setPropiedades([]);
         setTotal(0);
+        setEstado('listo');
+        return;
+      }
+
+      /*
+       * 429 es RNF-05: se acabo el techo. No es una pagina rota y
+       * reintentar ahora solo lo agrava. Se avisa cuando toca volver
+       * a intentarlo.
+       *
+       * Se conservan los resultados que ya habia en pantalla. Tirar la
+       * lista porque el servidor pidio esperar seria castigar a
+       * alguien por haber cargado mucho.
+       */
+      if (error instanceof ErrorApi && error.codigo === 429) {
+        setEspera(Math.max(0, error.esperarSegundos ?? 60));
         setEstado('listo');
         return;
       }
@@ -82,6 +105,27 @@ export default function PantallaBusqueda() {
       sort: 'distance',
     });
   }, [cargar]);
+
+  /*
+   * Cuenta regresiva de la espera impuesta por RNF-05.
+   *
+   * Vive en el componente y no en la respuesta del error porque el
+   * tiempo pasa aunque no haya peticiones: si dependiera de un
+   * temporizador creado al recibir el 429, recargar la pantalla lo
+   * reiniciaria.
+   */
+  useEffect(() => {
+    if (espera === null) return;
+
+    if (espera === 0) {
+      setEspera(null);
+      return;
+    }
+
+    const id = window.setTimeout(() => setEspera(espera - 1), 1000);
+
+    return () => window.clearTimeout(id);
+  }, [espera]);
 
   /*
    * RF-3.5: debounce de 300 ms al mover el mapa. Sin esto, cada pixel
@@ -176,6 +220,28 @@ export default function PantallaBusqueda() {
         />
       )}
 
+      {/*
+       * RNF-05. Va antes que la lista y no la reemplaza: si ya hay
+       * resultados en pantalla, se quedan. Tirar la lista porque el
+       * servidor pidió esperar sería castigar a alguien por haber
+       * cargado mucho.
+       */}
+      {espera !== null && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-3 flex items-start gap-3 rounded-md border border-clay bg-sand px-4 py-3"
+        >
+          <span aria-hidden="true" className="mt-0.5 text-leaf">
+            ⏳
+          </span>
+          <div>
+            <p className="text-small font-semibold text-ink">{MICROCOPY.busqueda.espera.titulo}</p>
+            <p className="text-caption text-stone">{MICROCOPY.busqueda.espera.detalle(espera)}</p>
+          </div>
+        </div>
+      )}
+
       {estado === 'listo' && total === 0 && (
         <SinResultados radioActual={zona?.metros} onAmpliarRadio={cambiarRadio} />
       )}
@@ -255,6 +321,23 @@ export default function PantallaBusqueda() {
             resaltada={resaltada}
             onMoverZona={alMoverZona}
             onSeleccionar={(id) => setResaltada(id)}
+            onPedirZonaEnVista={() => {
+              setEspera(null);
+
+              if (!zonaActual.current) {
+                void cargar({});
+                return;
+              }
+
+              const actual = zonaActual.current;
+
+              void cargar({
+                lat: actual.latitud,
+                lng: actual.longitud,
+                radius: actual.metros,
+                sort: 'distance',
+              });
+            }}
           />
         </section>
 

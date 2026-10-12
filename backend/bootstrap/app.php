@@ -14,14 +14,42 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         /*
-         * Nada que hacer todavia con el middleware.
-         *
          * CORS se configura en config/cors.php, no aqui. Y CSRF no se
          * toca: la API es sin sesion y la proteccion de CSRF se
          * resuelve con el token de Sanctum en RF-1.1, no abriendo
          * excepciones aqui. Excluir api/* de CSRF sin autenticacion
          * seria relajar RNF-04 a cambio de nada.
          */
+
+        /*
+         * Proxies de confianza.
+         *
+         * Sin esto, detras de nginx la IP que ve Laravel es la del
+         * proxy, la misma para todos. Y entonces el rate limiting de
+         * RNF-05 se convierte en un techo global: 120 peticiones por
+         * minuto para todo el mundo junto. Es peor que no tener
+         * limite, porque ademas de no proteger molesta.
+         *
+         * Se configura por entorno porque el valor depende de donde
+         * se despliegue: '*' sirve para un tunel, una IP concreta
+         * para un servidor propio. En desarrollo queda vacio, que es
+         * lo correcto porque no hay proxy delante.
+         */
+        $proxies = array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('TRUSTED_PROXIES', '')),
+        )));
+
+        if ($proxies !== []) {
+            $middleware->trustProxies(
+                at: $proxies === ['*'] ? '*' : $proxies,
+                headers: Request::HEADER_X_FORWARDED_FOR
+                    | Request::HEADER_X_FORWARDED_HOST
+                    | Request::HEADER_X_FORWARDED_PORT
+                    | Request::HEADER_X_FORWARDED_PROTO
+                    | Request::HEADER_X_FORWARDED_AWS_ELB,
+            );
+        }
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

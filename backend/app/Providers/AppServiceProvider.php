@@ -1,7 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers;
 
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +24,50 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        $this->limitarLecturasPublicas();
+    }
+
+    /**
+     * Techo de peticiones para la API publica. RNF-05.
+     *
+     * El listado es la operacion mas cara del sistema: cada peticion
+     * evalua ST_Distance_Sphere sobre una columna POINT que todavia no
+     * tiene indice espacial. Sin limite, eso es exactamente lo que un
+     * crawler repetiria en bucle.
+     *
+     * El numero esta calculado contra el frontend mas rapido que hay,
+     * no contra lo que parece comodo para un humano. El mapa dispara
+     * su busqueda con un debounce de 300 ms, asi que arrastrar sin
+     * parar no genera ni una peticion; 120 por minuto son dos por
+     * segundo sostenidas, de sobra para quien navega y va cambiando
+     * filtros.
+     *
+     * El limite no busca impedir el scraping, sino encarecerlo y
+     * hacerlo detectable. Con 120/min, sacar las diez mil propiedades
+     * de una tabla grande lleva mas de hora y media y deja rastro.
+     */
+    private function limitarLecturasPublicas(): void
+    {
+        RateLimiter::for('api', function (Request $request): Limit {
+            return Limit::perMinute(120)->by($this->claveDeCliente($request));
+        });
+    }
+
+    /**
+     * Identifica al cliente para el contador.
+     *
+     * Por IP, que es lo unico disponible sin sesion. El problema es
+     * que detras de un proxy todas las peticiones llegan con la misma
+     * IP, y entonces el techo seria global: 120 por minuto para todo
+     * el mundo junto.
+     *
+     * Por eso hay que configurar TRUSTED_PROXIES. Sin eso, en
+     * produccion el rate limiting no protege y ademas molesta.
+     */
+    private function claveDeCliente(Request $request): string
+    {
+        return $request->user()?->getAuthIdentifier()
+            ? 'user:'.$request->user()->getAuthIdentifier()
+            : 'ip:'.$request->ip();
     }
 }

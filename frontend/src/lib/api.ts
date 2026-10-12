@@ -56,11 +56,37 @@ export class ErrorApi extends Error {
   readonly codigo: number;
   readonly errores: Record<string, string[]>;
 
-  constructor(message: string, codigo: number, errores: Record<string, string[]> = {}) {
+  /**
+   * Segundos que faltan para poder volver a pedir, o null si la
+   * respuesta no lo decia.
+   *
+   * Lo manda el backend en el 429 de RNF-05. Sin esto el frontend solo
+   * puede mostrar un error generico y el usuario reintenta a lo loco,
+   * gastando un techo que ya se acabo.
+   */
+  readonly esperarSegundos: number | null;
+
+  constructor(
+    message: string,
+    codigo: number,
+    errores: Record<string, string[]> = {},
+    esperarSegundos: number | null = null,
+  ) {
     super(message);
     this.name = 'ErrorApi';
     this.codigo = codigo;
     this.errores = errores;
+    this.esperarSegundos = esperarSegundos;
+  }
+
+  /**
+   * Si conviene esperar antes de reintentar.
+   *
+   * Solo cuando el servidor lo dice. Un 500 no trae Retry-After y
+   * reintentar a ciegas no arregla nada.
+   */
+  get hayQueEsperar(): boolean {
+    return this.esperarSegundos !== null;
   }
 }
 
@@ -80,10 +106,56 @@ async function manejarError(respuesta: Response): Promise<never> {
   }
 
   throw new ErrorApi(
-    cuerpo.message ?? `No pudimos cargar los inmuebles (${respuesta.status}).`,
+    cuerpo.message ?? mensajePorDefecto(respuesta.status),
     respuesta.status,
     cuerpo.errors ?? {},
+    leerRetryAfter(respuesta),
   );
+}
+
+/**
+ * Lee la cabecera Retry-After.
+ *
+ * Puede venir como numero de segundos o como fecha HTTP. Se
+ * soportan las dos porque el estandar permite cualquiera de las dos y
+ * un proxy intermedio puede reescribirla.
+ */
+function leerRetryAfter(respuesta: Response): number | null {
+  const cabecera = respuesta.headers.get('Retry-After');
+
+  if (!cabecera) return null;
+
+  const segundos = Number(cabecera);
+
+  if (Number.isFinite(segundos)) {
+    return Math.max(0, Math.ceil(segundos));
+  }
+
+  const fecha = Date.parse(cabecera);
+
+  if (Number.isNaN(fecha)) return null;
+
+  return Math.max(0, Math.ceil((fecha - Date.now()) / 1000));
+}
+
+/**
+ * Un mensaje por codigo, no uno generico para todo.
+ *
+ * El 429 merece el suyo porque la accion es distinta: no hay que
+ * reintentar ya, hay que esperar. Decirle a alguien "no pudimos
+ * cargar" cuando solo tiene queaguardar treinta segundos lo hace
+ * pensar que la pagina esta rota.
+ */
+function mensajePorDefecto(codigo: number): string {
+  if (codigo === 429) {
+    return 'Vamos con calma: hiciste demasiadas consultas seguidas.';
+  }
+
+  if (codigo === 404) {
+    return 'Ese inmueble ya no está disponible.';
+  }
+
+  return `No pudimos cargar los inmuebles (${codigo}).`;
 }
 
 export async function listarPropiedades(
