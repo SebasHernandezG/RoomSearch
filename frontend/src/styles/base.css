@@ -1,0 +1,60 @@
+/**
+ * Base layer - element defaults and accessibility affordances.
+ * Issue: DS-10 (accessibility), DS-11 (motion).
+ */
+
+@layer base {
+  html {
+    /* Light mode only for the MVP. Dark mode is deferred to V2 (see DS-1). */
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3 {
+    color: var(--color-ink);
+    text-wrap: balance;
+  }
+
+  /*
+   * Focus ring - 3px leaf with 2px offset.
+   * DS-10: focus must be visible on light backgrounds AND over the map.
+   */
+  :focus-visible {
+    outline: 3px solid var(--color-leaf);
+    outline-offset: 2px;
+  }
+
+  /* Remove the ring only for pointer interactions that already show hover state */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  ::selection {
+    background-color: var(--color-coffee);
+    color: var(--color-forest);
+  }
+
+  /* DS-11: respect the OS preference. No exceptions. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
