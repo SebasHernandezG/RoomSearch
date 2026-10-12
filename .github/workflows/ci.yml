@@ -79,7 +79,6 @@ jobs:
       - name: Auditoria de dependencias
         working-directory: backend
         run: composer audit --no-interaction
-        continue-on-error: true
 
   frontend:
     name: Frontend
