@@ -15,7 +15,7 @@ import PropertyCard from './PropertyCard';
 import { ErrorConexion, SinResultados } from './estadosBusqueda';
 import PropertyMap, { RADIOS, type PuntoZona } from './mapa/PropertyMap';
 import SelectorRadio from './mapa/SelectorRadio';
-import { PROPIEDADES_DEMO } from '../data/demo';
+import { ErrorApi, listarPropiedades, type Filtros } from '../lib/api';
 import type { Property } from '../types/property';
 
 type Vista = 'mapa' | 'lista';
@@ -26,44 +26,96 @@ const ZONA_INICIAL: PuntoZona = { latitud: 10.3236, longitud: -84.4274, metros: 
 
 export default function PantallaBusqueda() {
   const [vista, setVista] = useState<Vista>('mapa');
-  const [estado, setEstado] = useState<Estado>('listo');
-  // El estado inicial ya viene filtrado: si no, la etiqueta del mapa
-  // diria 4 inmuebles mientras solo se dibuja un marcador.
-  const [propiedades, setPropiedades] = useState<Property[]>(() =>
-    aplicarZona(PROPIEDADES_DEMO, ZONA_INICIAL),
-  );
+  const [estado, setEstado] = useState<Estado>('cargando');
+  const [propiedades, setPropiedades] = useState<Property[]>([]);
+  const [total, setTotal] = useState(0);
   const [zona, setZona] = useState<PuntoZona | null>(ZONA_INICIAL);
   const [resaltada, setResaltada] = useState<number | null>(null);
   const [favoritos, setFavoritos] = useState<number[]>([]);
-  const [movidoPorUsuario, setMovidoPorUsuario] = useState(false);
 
   const temporizador = useRef<number | null>(null);
+
+  /*
+   * La zona viva, para compararla sin esperar al re-render.
+   *
+   * Va en un ref y no en el estado a proposito: alMoverZona necesita
+   * leer la zona anterior en el momento en que llega la nueva, y leerla
+   * del estado lo daria desfasada por un render.
+   */
+  const zonaActual = useRef<PuntoZona | null>(ZONA_INICIAL);
+
+  /*
+   * Carga contra la API real.
+   *
+   * La distancia la calcula MySQL con ST_Distance_Sphere, nunca el
+   * navegador: el issue #16 documenta las tres trampas de MySQL que
+   * hacen que esto no se pueda replicar en el cliente sin fallar.
+   */
+  const cargar = useCallback(async (filtros: Filtros) => {
+    setEstado('cargando');
+
+    try {
+      const respuesta = await listarPropiedades(filtros);
+
+      setPropiedades(respuesta.data);
+      setTotal(respuesta.meta.total);
+      setEstado('listo');
+    } catch (error) {
+      // 422 es validacion del cliente: el backend ya explico que esta
+      // mal, no es un fallo de conexion al que reintentar.
+      if (error instanceof ErrorApi && error.codigo === 422) {
+        setPropiedades([]);
+        setTotal(0);
+        setEstado('listo');
+        return;
+      }
+
+      setEstado('error');
+    }
+  }, []);
+
+  useEffect(() => {
+    void cargar({
+      lat: ZONA_INICIAL.latitud,
+      lng: ZONA_INICIAL.longitud,
+      radius: ZONA_INICIAL.metros,
+      sort: 'distance',
+    });
+  }, [cargar]);
 
   /*
    * RF-3.5: debounce de 300 ms al mover el mapa. Sin esto, cada pixel
    * genera una peticion.
    *
-   * `movidoPorUsuario` evita que pedir datos mueva el mapa, que moveria
-   * el mapa pediria datos, en un bucle infinito.
+   * Ademas se descarta la zona que no cambio de verdad. Ajustar el
+   * encuadre al circulo devuelve el centro al mismo sitio, asi que sin
+   * esta comparacion cada ajuste volvia a disparar una busqueda: se
+   * midieron 779 peticiones seguidas y la pantalla nunca salia de
+   * "cargando".
    */
-  const alMoverZona = useCallback((nueva: PuntoZona | null) => {
-    setMovidoPorUsuario(true);
+  const alMoverZona = useCallback(
+    (nueva: PuntoZona | null) => {
+      if (nueva && zonaActual.current && sonLaMismaZona(zonaActual.current, nueva)) {
+        return;
+      }
 
-    if (temporizador.current !== null) {
-      window.clearTimeout(temporizador.current);
-    }
+      if (temporizador.current !== null) {
+        window.clearTimeout(temporizador.current);
+      }
 
-    temporizador.current = window.setTimeout(() => {
-      setZona(nueva);
-      setEstado('cargando');
+      temporizador.current = window.setTimeout(() => {
+        zonaActual.current = nueva;
+        setZona(nueva);
 
-      window.setTimeout(() => {
-        setPropiedades(aplicarZona(PROPIEDADES_DEMO, nueva));
-        setEstado('listo');
-        setMovidoPorUsuario(false);
-      }, 450);
-    }, 300);
-  }, []);
+        void cargar(
+          nueva
+            ? { lat: nueva.latitud, lng: nueva.longitud, radius: nueva.metros, sort: 'distance' }
+            : {},
+        );
+      }, 300);
+    },
+    [cargar],
+  );
 
   useEffect(
     () => () => {
@@ -74,32 +126,58 @@ export default function PantallaBusqueda() {
     [],
   );
 
+  const cambiarRadio = useCallback(
+    (metros: number) => {
+      if (!zona) return;
+
+      const nueva = { ...zona, metros };
+
+      zonaActual.current = nueva;
+      setZona(nueva);
+
+      void cargar({
+        lat: nueva.latitud,
+        lng: nueva.longitud,
+        radius: nueva.metros,
+        sort: 'distance',
+      });
+    },
+    [zona, cargar],
+  );
+
   const visibles = propiedades.map((p) => ({ ...p, is_favorite: favoritos.includes(p.id) }));
 
   const lista = (
     <div className="h-full overflow-y-auto p-4">
       <div className="rounded-lg border border-line bg-white p-4 shadow-sm">
-        <SelectorRadio
-          valor={zona?.metros ?? RADIOS[1]!}
-          onCambio={(metros) => setZona((z) => (z ? { ...z, metros } : z))}
-        />
+        <SelectorRadio valor={zona?.metros ?? RADIOS[1]!} onCambio={cambiarRadio} />
       </div>
 
       <p className="text-small mt-4 mb-3 text-stone">
-        {visibles.length === 0
-          ? 'Ningún inmueble en esta zona'
-          : `${visibles.length} ${visibles.length === 1 ? 'inmueble' : 'inmuebles'} en esta zona`}
+        {total === 0
+          ? 'NingÃºn inmueble en esta zona'
+          : `${total} ${total === 1 ? 'inmueble' : 'inmuebles'} en esta zona`}
       </p>
 
       {estado === 'cargando' && <Cargando cantidad={3} />}
 
-      {estado === 'error' && <ErrorConexion onReintentar={() => setEstado('listo')} />}
-
-      {estado === 'listo' && visibles.length === 0 && (
-        <SinResultados
-          radioActual={zona?.metros}
-          onAmpliarRadio={(m) => setZona((z) => (z ? { ...z, metros: m } : z))}
+      {estado === 'error' && (
+        <ErrorConexion
+          onReintentar={() =>
+            zona
+              ? void cargar({
+                  lat: zona.latitud,
+                  lng: zona.longitud,
+                  radius: zona.metros,
+                  sort: 'distance',
+                })
+              : void cargar({})
+          }
         />
+      )}
+
+      {estado === 'listo' && total === 0 && (
+        <SinResultados radioActual={zona?.metros} onAmpliarRadio={cambiarRadio} />
       )}
 
       {estado === 'listo' && visibles.length > 0 && (
@@ -136,7 +214,7 @@ export default function PantallaBusqueda() {
       {/* Pestanas de movil: 56 px, el pulgar llega. */}
       <div
         role="tablist"
-        aria-label="Vista de búsqueda"
+        aria-label="Vista de bÃºsqueda"
         className="flex shrink-0 border-b border-line bg-paper lg:hidden"
       >
         {(
@@ -177,7 +255,6 @@ export default function PantallaBusqueda() {
             resaltada={resaltada}
             onMoverZona={alMoverZona}
             onSeleccionar={(id) => setResaltada(id)}
-            onPedirZonaEnVista={movidoPorUsuario ? () => setMovidoPorUsuario(false) : undefined}
           />
         </section>
 
@@ -195,38 +272,23 @@ export default function PantallaBusqueda() {
 }
 
 /**
- * Filtra por distancia y le pone el valor a la tarjeta.
+ * Si dos zonas cubren practicamente lo mismo.
  *
- * Aqui se usa la formula de haversine para que la demo responda. En
- * produccion lo hace MySQL con ST_Distance_Sphere, y el issue #16
- * documenta las tres trampas de MySQL que hay que respetar.
+ * El mapa devuelve el centro con seis decimales, y ajustar el encuadre
+ * al circulo lo devuelve al mismo punto. Sin esta tolerancia, cada
+ * ajuste reventaba una peticion aunque la zona no hubiera cambiado.
+ *
+ * 50 m es medio bloque: por debajo se nota el temblor al arrastrar y
+ * por encima dejas de sentir el mapa pegado al dedo.
  */
-function aplicarZona(props: Property[], zona: PuntoZona | null): Property[] {
-  if (!zona) return props;
+function sonLaMismaZona(a: PuntoZona, b: PuntoZona): boolean {
+  const mediaMetrosPorGrado = 111_320;
 
-  const dentro: Property[] = [];
+  const metros = (unGrado: number) => unGrado * mediaMetrosPorGrado;
 
-  for (const p of props) {
-    if (p.latitude === null || p.longitude === null) continue;
-
-    const metros = distanciaEnMetros(zona.latitud, zona.longitud, p.latitude, p.longitude);
-
-    if (metros <= zona.metros) {
-      dentro.push({ ...p, distance_meters: metros });
-    }
-  }
-
-  return dentro;
-}
-
-function distanciaEnMetros(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6_371_000;
-  const aLat = (lat1 * Math.PI) / 180;
-  const bLat = (lat2 * Math.PI) / 180;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(aLat) * Math.cos(bLat) * Math.sin(dLng / 2) ** 2;
-
-  return Math.round(2 * R * Math.asin(Math.sqrt(h)));
+  return (
+    a.metros === b.metros &&
+    metros(Math.abs(a.latitud - b.latitud)) < 50 &&
+    metros(Math.abs(a.longitud - b.longitud)) < 50
+  );
 }
