@@ -3,6 +3,10 @@
 .env
 .env.backup
 .env.production
+php.ini
+php.ini-development
+php.ini-production
+phpunit.xml.bak
 .phpactor.json
 .phpunit.result.cache
 /.codex
