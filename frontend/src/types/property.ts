@@ -1,0 +1,58 @@
+/**
+ * Tipos que reflejan el dominio de Properties.
+ *
+ * Espejan lo que devuelve la API, no lo que hay en la base de datos.
+ * `currency` y `type` usan los mismos valores que los enums del backend
+ * (Modules\Properties\Enums).
+ */
+
+export type PropertyType = 'apartamento' | 'casa' | 'habitacion' | 'estudio';
+
+export type Currency = 'CRC' | 'USD';
+
+export type PropertyStatus = 'borrador' | 'pendiente' | 'activa' | 'pausada' | 'alquilada';
+
+export interface PropertyImage {
+  id: number;
+  url: string;
+  /** Alt describe el inmueble, no el archivo: DS-10 exige textos utiles. */
+  alt: string;
+}
+
+export interface Property {
+  id: number;
+  title: string;
+  district: string | null;
+  neighborhood: string | null;
+  type: PropertyType;
+  monthly_rent: number;
+  currency: Currency;
+  deposit: number | null;
+  bedrooms: number;
+  bathrooms: number;
+  parking_spaces: number;
+  furnished: boolean;
+  pets_allowed: boolean;
+  status: PropertyStatus;
+
+  /** RF-2.4: el pin lo elige el arrendador. Puede faltar en un borrador. */
+  latitude: number | null;
+  longitude: number | null;
+
+  /** RF-2.5: si es false, el mapa muestra un area aproximada. */
+  show_exact_location: boolean;
+
+  /** RF-8.1: insignia de arrendador verificado. */
+  landlord_verified: boolean;
+
+  /** Solo llega si el usuario inicio sesion y marco la propiedad. */
+  is_favorite?: boolean;
+
+  /**
+   * Distancia en metros al punto de referencia activo (RF-3.7).
+   * Viene del servidor, nunca se calcula en el cliente.
+   */
+  distance_meters?: number | null;
+
+  images: PropertyImage[];
+}
