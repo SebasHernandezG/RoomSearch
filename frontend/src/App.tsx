@@ -70,14 +70,17 @@ export default function App() {
         </p>
         <h1 className="text-display text-paper">Roomies San Carlos</h1>
         <p className="text-body text-paper/80 max-w-prose">
-          Esta pagina existe para revisar los tokens antes de construir componentes.
-          Se elimina cuando empiece DS-4.
+          Esta pagina existe para revisar los tokens antes de construir componentes. Se elimina
+          cuando empiece DS-4.
         </p>
       </header>
 
       <main className="mx-auto max-w-5xl px-5 py-10 sm:px-8">
         {/* -------- DS-1 · Color -------- */}
-        <Section title="DS-1 · Color" note="Paleta calida tropical. Contraste verificado contra paper.">
+        <Section
+          title="DS-1 · Color"
+          note="Paleta calida tropical. Contraste verificado contra paper."
+        >
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
             {colors.map((c) => (
               <div key={c.name} className="rounded-lg border border-line bg-white p-3 shadow-sm">
@@ -92,11 +95,23 @@ export default function App() {
           <div className="mt-6 rounded-lg border border-line bg-white p-5 shadow-sm">
             <h3 className="text-small font-semibold">Reglas de contraste aplicadas</h3>
             <ul className="text-small text-stone mt-2 list-disc space-y-1 pl-5">
-              <li><span className="font-semibold text-ink">ink sobre paper</span> — 13.8:1 · AAA</li>
-              <li><span className="font-semibold text-ink">paper sobre forest</span> — 12.6:1 · AAA</li>
-              <li><span className="font-semibold text-ink">leaf sobre paper</span> — 5.7:1 · AA</li>
-              <li><span className="font-semibold text-clay">clay sobre paper</span> — 3.4:1 · <strong>solo texto grande</strong></li>
-              <li><span className="font-semibold text-sun">sun sobre paper</span> — 2.1:1 · <strong>solo decorativo, nunca texto</strong></li>
+              <li>
+                <span className="font-semibold text-ink">ink sobre paper</span> — 13.8:1 · AAA
+              </li>
+              <li>
+                <span className="font-semibold text-ink">paper sobre forest</span> — 12.6:1 · AAA
+              </li>
+              <li>
+                <span className="font-semibold text-ink">leaf sobre paper</span> — 5.7:1 · AA
+              </li>
+              <li>
+                <span className="font-semibold text-clay">clay sobre paper</span> — 3.4:1 ·{' '}
+                <strong>solo texto grande</strong>
+              </li>
+              <li>
+                <span className="font-semibold text-sun">sun sobre paper</span> — 2.1:1 ·{' '}
+                <strong>solo decorativo, nunca texto</strong>
+              </li>
             </ul>
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <span className="rounded-md bg-forest px-4 py-2.5 text-body font-semibold text-paper">
@@ -116,19 +131,27 @@ export default function App() {
         </Section>
 
         {/* -------- DS-2 · Typography -------- */}
-        <Section title="DS-2 · Tipografia" note="Figtree. Tres pesos: 400, 600, 700. Cuerpo minimo 16px en movil.">
+        <Section
+          title="DS-2 · Tipografia"
+          note="Figtree. Tres pesos: 400, 600, 700. Cuerpo minimo 16px en movil."
+        >
           <div className="rounded-lg border border-line bg-white p-6 shadow-sm">
             {sizes.map((s) => (
               <div key={s.token} className="border-b border-line py-3 last:border-0">
                 <p className={`${s.cls} mb-1`}>Un espacio que se siente hogar {s.note}</p>
-                <p className="text-caption text-stone font-mono">{s.token} · {s.cls}</p>
+                <p className="text-caption text-stone font-mono">
+                  {s.token} · {s.cls}
+                </p>
               </div>
             ))}
           </div>
         </Section>
 
         {/* -------- DS-3 · Radius & Elevation -------- */}
-        <Section title="DS-3 · Radio y elevacion" note="Ningun borde es recto. Las sombras son calidas, nunca grises puras.">
+        <Section
+          title="DS-3 · Radio y elevacion"
+          note="Ningun borde es recto. Las sombras son calidas, nunca grises puras."
+        >
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
             {radii.map((r) => (
               <div key={r.token} className={`${r.cls} border border-line bg-sand p-4 text-center`}>
@@ -149,7 +172,10 @@ export default function App() {
         </Section>
 
         {/* -------- DS-10 · Accesibilidad -------- */}
-        <Section title="DS-10 · Accesibilidad" note="Anillo de foco, area tactil minima y objetivo de 44px.">
+        <Section
+          title="DS-10 · Accesibilidad"
+          note="Anillo de foco, area tactil minima y objetivo de 44px."
+        >
           <div className="rounded-lg border border-line bg-white p-6 shadow-sm">
             <div className="flex flex-wrap items-center gap-4">
               <button className="min-h-11 rounded-md bg-forest px-5 text-body font-semibold text-paper">
@@ -163,7 +189,8 @@ export default function App() {
               </span>
             </div>
             <p className="text-small text-stone mt-4">
-              Usa Tab para recorrer los botones y ver el anillo de 3px en <span className="font-mono">leaf</span>.
+              Usa Tab para recorrer los botones y ver el anillo de 3px en{' '}
+              <span className="font-mono">leaf</span>.
             </p>
           </div>
         </Section>
