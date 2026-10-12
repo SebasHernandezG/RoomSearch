@@ -5,6 +5,7 @@ namespace Tests\Feature\Auth;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -100,5 +101,49 @@ class PasswordResetTest extends TestCase
 
             return true;
         });
+    }
+
+    public function test_expired_reset_token_cannot_change_the_password(): void
+    {
+        Notification::fake();
+        $this->freezeTime();
+        $user = User::factory()->create();
+        $originalPassword = $user->password;
+        $this->post(route('password.email'), ['email' => $user->email]);
+        $token = Notification::sent($user, ResetPassword::class)->sole()->token;
+        $this->travel(61)->minutes();
+
+        $this->post(route('password.store'), [
+            'token' => $token, 'email' => $user->email,
+            'password' => 'new-password', 'password_confirmation' => 'new-password',
+        ])->assertSessionHasErrors(['email' => __('passwords.token')]);
+
+        $this->assertSame($originalPassword, $user->fresh()->password);
+        $this->assertGuest();
+    }
+
+    public function test_used_reset_token_cannot_change_the_password_again(): void
+    {
+        Notification::fake();
+        $this->freezeTime();
+        $user = User::factory()->create();
+        $this->post(route('password.email'), ['email' => $user->email]);
+        $token = Notification::sent($user, ResetPassword::class)->sole()->token;
+
+        $this->post(route('password.store'), [
+            'token' => $token, 'email' => $user->email,
+            'password' => 'new-password', 'password_confirmation' => 'new-password',
+        ])->assertSessionHasNoErrors()->assertRedirect(route('login'));
+
+        $this->assertTrue(Hash::check('new-password', $user->fresh()->password));
+        $this->assertDatabaseMissing('password_reset_tokens', ['email' => $user->email]);
+
+        $this->post(route('password.store'), [
+            'token' => $token, 'email' => $user->email,
+            'password' => 'another-password', 'password_confirmation' => 'another-password',
+        ])->assertSessionHasErrors(['email' => __('passwords.token')]);
+
+        $this->assertTrue(Hash::check('new-password', $user->fresh()->password));
+        $this->assertGuest();
     }
 }
