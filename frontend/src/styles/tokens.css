@@ -1,0 +1,93 @@
+/**
+ * Design tokens - Roomies San Carlos
+ * Issues: DS-1 (color), DS-2 (typography, spacing), DS-3 (radius, elevation)
+ *
+ * Tailwind v4 is CSS-first: this @theme block IS the design system.
+ * Everything defined here becomes a utility class automatically.
+ *   --color-forest: #1B4332   ->   bg-forest  text-forest  border-forest
+ *
+ * Naming rule: --radius-* and --shadow-* intentionally OVERRIDE Tailwind's
+ * defaults so the whole product shares one scale. Do not mix in ad-hoc values.
+ */
+
+/* ------------------------------------------------------------------ *
+ * DS-1 · Color - "warm tropical"
+ * Contrast verified against paper (#FDFBF7). See table in DS-1.
+ * ------------------------------------------------------------------ */
+@theme {
+  /* Brand */
+  --color-forest: #1b4332; /* primary buttons, text on cream */
+  --color-leaf: #2d6a4f; /* links, active state */
+  --color-coffee: #74c69d; /* soft accent, hover */
+  --color-sun: #f4a261; /* warm accent, price highlight */
+  --color-clay: #e76f51; /* alert, error */
+
+  /* Surfaces */
+  --color-paper: #fdfbf7; /* main background */
+  --color-sand: #f4ede2; /* alternating card background */
+
+  /* Text */
+  --color-ink: #1c2b24; /* primary text */
+  --color-stone: #6b7b72; /* secondary text */
+
+  /* Borders */
+  --color-line: #e8e2d6; /* hairlines on flat surfaces */
+
+  /* ---------------------------------------------------------------- *
+   * DS-2 · Typography
+   * Figtree - rounded, modern, excellent Spanish accents, legible small.
+   * Three weights only: 400 / 600 / 700.
+   * NOTE: body text never goes below 16px on mobile.
+   * ---------------------------------------------------------------- */
+  --font-sans: "Figtree", ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  --text-display: 2rem; /* 32px - hero headline */
+  --text-display--line-height: 1.15;
+  --text-display--font-weight: 700;
+
+  --text-h1: 1.625rem; /* 26px - page title */
+  --text-h1--line-height: 1.25;
+  --text-h1--font-weight: 700;
+
+  --text-h2: 1.25rem; /* 20px - section title */
+  --text-h2--line-height: 1.3;
+  --text-h2--font-weight: 600;
+
+  --text-body: 1rem; /* 16px - body, mobile minimum */
+  --text-body--line-height: 1.5;
+  --text-body--font-weight: 400;
+
+  --text-small: 0.875rem; /* 14px - secondary text */
+  --text-small--line-height: 1.45;
+  --text-small--font-weight: 400;
+
+  --text-caption: 0.75rem; /* 12px - metadata, timestamps */
+  --text-caption--line-height: 1.4;
+  --text-caption--font-weight: 500;
+
+  /* ---------------------------------------------------------------- *
+   * DS-2 · Spacing
+   * Tailwind's default --spacing is already 0.25rem (4px), which
+   * matches our rhythm exactly. Nothing to override.
+   * ---------------------------------------------------------------- */
+
+  /* ---------------------------------------------------------------- *
+   * DS-3 · Radius - nothing is perfectly square in this product.
+   * ---------------------------------------------------------------- */
+  --radius-sm: 0.5rem; /* 8px  - badges, chips */
+  --radius-md: 0.75rem; /* 12px - buttons, inputs */
+  --radius-lg: 1rem; /* 16px - cards */
+  --radius-xl: 1.5rem; /* 24px - modals, sheets */
+
+  /* ---------------------------------------------------------------- *
+   * DS-3 · Elevation - warm shadows, never pure gray.
+   * Pure gray over cream reads dirty.
+   * ---------------------------------------------------------------- */
+  --shadow-sm: 0 1px 2px rgb(28 43 36 / 0.06);
+  --shadow-md: 0 4px 12px rgb(28 43 36 / 0.08);
+  --shadow-lg: 0 12px 28px rgb(28 43 36 / 0.12);
+
+  /* DS-11 · motion: nothing exceeds 300ms */
+  --transition-quick: 200ms;
+  --ease-soft: cubic-bezier(0, 0, 0.2, 1);
+}
