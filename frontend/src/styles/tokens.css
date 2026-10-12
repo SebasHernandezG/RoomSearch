@@ -39,7 +39,7 @@
    * Three weights only: 400 / 600 / 700.
    * NOTE: body text never goes below 16px on mobile.
    * ---------------------------------------------------------------- */
-  --font-sans: "Figtree", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans: 'Figtree', ui-sans-serif, system-ui, -apple-system, sans-serif;
 
   --text-display: 2rem; /* 32px - hero headline */
   --text-display--line-height: 1.15;
