@@ -31,6 +31,9 @@ export const ZOOM_INICIAL = 13;
 /** Radios que ofrece el selector. DS-7. */
 export const RADIOS = [500, 1000, 2000, 3000, 5000, 10_000] as const;
 
+/** 1 km cubre casi todo Ciudad Quesada. */
+export const RADIO_POR_DEFECTO = 1000;
+
 export type PuntoZona = { latitud: number; longitud: number; metros: number };
 
 type Props = {
@@ -41,7 +44,6 @@ type Props = {
   /** Id de la propiedad resaltada, para RF-3.5. */
   resaltada?: number | null;
   onSeleccionar?: (id: number) => void;
-  onPedirZonaEnVista?: () => void;
   className?: string;
 };
 
@@ -52,7 +54,6 @@ export default function PropertyMap({
   onMoverZona,
   resaltada = null,
   onSeleccionar,
-  onPedirZonaEnVista,
   className = '',
 }: Props) {
   const contenedor = useRef<HTMLDivElement>(null);
@@ -62,10 +63,27 @@ export default function PropertyMap({
   const etiqueta = useRef<L.Marker | null>(null);
   const marcadores = useRef<Map<number, L.Marker>>(new Map());
 
+  /*
+   * El mapa se esta moviendo por codigo, no por el usuario. El estado
+   * vive en `ajustesEnCurso`, mas abajo.
+   */
+
   // Los callbacks se guardan en refs para no reconstruir el mapa cuando
   // el padre pasa una funcion nueva en cada render.
-  const cb = useRef({ onMoverZona, onSeleccionar, onPedirZonaEnVista });
-  cb.current = { onMoverZona, onSeleccionar, onPedirZonaEnVista };
+  const cb = useRef({ onMoverZona, onSeleccionar });
+  cb.current = { onMoverZona, onSeleccionar };
+
+  /*
+   * El radio lo elige la persona con el selector, no se deduce del
+   * zoom.
+   *
+   * Deducirlo del zoom hacia circular: el zoom determinaba el radio, el
+   * radio determinaba el circulo, y ajustar el mapa al circulo movia el
+   * zoom otra vez. Ahora el radio solo cambia cuando se pulsa un boton,
+   * asi que la unica fuente de movimiento es la persona.
+   */
+  const radioVigente = useRef<number>(zona?.metros ?? RADIO_POR_DEFECTO);
+  radioVigente.current = zona?.metros ?? RADIO_POR_DEFECTO;
 
   // Creacion del mapa: una sola vez.
   useEffect(() => {
@@ -90,17 +108,48 @@ export default function PropertyMap({
     capaMarcadores.current = L.layerGroup().addTo(instancia);
 
     /*
+     * Leaflet mide el contenedor una sola vez, al crearse. Si en ese
+     * momento estaba oculto (la pestana "Lista" en movil lo oculta con
+     * display:none) se queda con un tamano de cero y dibuja las
+     * teselas en una franja, con el resto del mapa en blanco.
+     *
+     * invalidateSize lo vuelve a medir, y despues hay que volver a
+     * encuadrar: el zoom con el que se ajusto el circulo ya no
+     * corresponde al alto real.
+     */
+    const remedir = () => {
+      instancia.invalidateSize({ animate: false });
+      if (circulo.current) {
+        ajustarVista(instancia, circulo.current);
+      }
+    };
+
+    // El primer invalidateSize espera un turno: al montar todavia no
+    // se ha resuelto el layout, y medir ahora daria el tamano viejo.
+    const primerFrame = window.requestAnimationFrame(remedir);
+
+    const observador = new ResizeObserver(remedir);
+    observador.observe(contenedor.current);
+
+    /*
      * RF-3.5: al mover el mapa se avisa al padre, que decide cuando
      * pedir datos. El debounce vive en el padre, no aqui: el mapa solo
      * informa del movimiento.
+     *
+     * Solo moveend, no zoomend: hacer zoom sin desplazar deja la zona
+     * igual, asi que no hay nada que buscar de nuevo.
      */
-    instancia.on('moveend zoomend', () => {
-      cb.current.onMoverZona?.(leerCentro(instancia));
+    instancia.on('moveend', () => {
+      if (ajustesEnCurso.has(instancia)) return;
+
+      cb.current.onMoverZona?.(leerCentro(instancia, radioVigente.current));
     });
 
     mapa.current = instancia;
 
     return () => {
+      window.cancelAnimationFrame(primerFrame);
+      observador.disconnect();
       instancia.remove();
       mapa.current = null;
     };
@@ -216,7 +265,7 @@ export default function PropertyMap({
       }),
     }).addTo(instancia);
 
-    instancia.fitBounds(circulo.current.getBounds(), { padding: [40, 40], animate: false });
+    ajustarVista(instancia, circulo.current);
   }, [zona, propiedades.length]);
 
   return (
@@ -227,16 +276,6 @@ export default function PropertyMap({
         role="application"
         aria-label="Mapa de inmuebles"
       />
-
-      {zona && onPedirZonaEnVista && (
-        <button
-          type="button"
-          onClick={onPedirZonaEnVista}
-          className="absolute bottom-4 left-1/2 z-[500] flex min-h-11 -translate-x-1/2 items-center rounded-md bg-forest px-4 text-body font-semibold text-paper shadow-lg transition-colors duration-200 hover:bg-leaf motion-reduce:transition-none"
-        >
-          Buscar en esta zona
-        </button>
-      )}
 
       {zona && (
         <button
@@ -252,9 +291,47 @@ export default function PropertyMap({
 }
 
 /**
- * Lee el centro del mapa como punto de zona.
+ * Encuadrar el circulo de la zona.
+ *
+ * El guardia `ajustando` evita el bucle: fitBounds dispara moveend, y
+ * moveend sin guardia lo leeria el padre como "la persona movio el
+ * mapa", provoking una busqueda que volveria a cambiar la zona y a
+ * volver a llamar a esta funcion.
+ *
+ * Se levanta en el siguiente turno a proposito. Si el circulo ya
+ * cabia, fitBounds no mueve nada y no llega ningun moveend que
+ * limpiar; el temporal deja el mapa listo para el siguiente movimiento
+ * real de la persona.
  */
-function leerCentro(instancia: L.Map): PuntoZona | null {
+function ajustarVista(instancia: L.Map, circulo: L.Circle): void {
+  // El guardia vive fuera del componente: esta funcion se llama desde
+  // el efecto del circulo y desde el ResizeObserver, y los dos
+  // necesitan el mismo.
+  ajustesEnCurso.add(instancia);
+
+  instancia.fitBounds(circulo.getBounds(), { padding: [40, 40], animate: false });
+
+  window.setTimeout(() => {
+    ajustesEnCurso.delete(instancia);
+  }, 0);
+}
+
+/**
+ * Mapas que se estan encuadrando por codigo, no por la persona.
+ *
+ * Vive fuera del componente porque ajustarVista se llama desde dos
+ * efectos distintos y un ref no llega al helper suelto.
+ */
+const ajustesEnCurso = new WeakSet<L.Map>();
+
+/**
+ * Lee el centro del mapa como punto de zona.
+ *
+ * El radio no se deduce de aqui: lo elige el selector y viaja tal
+ * cual. Inferirlo del zoom cerraba un ciclo con fitBounds (ver
+ * `ajustando`).
+ */
+function leerCentro(instancia: L.Map, metros: number): PuntoZona | null {
   const centro = instancia.getCenter();
 
   if (!centro) return null;
@@ -262,27 +339,6 @@ function leerCentro(instancia: L.Map): PuntoZona | null {
   return {
     latitud: Number(centro.lat.toFixed(6)),
     longitud: Number(centro.lng.toFixed(6)),
-    metros: leerRadioActual(instancia),
+    metros,
   };
-}
-
-/**
- * Radio vigente, inferido del zoom.
- *
- * Aproximado a proposito: en San Carlos 1 grado de latitud son unos
- * 110.6 km. No pretende ser exacto. RF-3.3 calcula la distancia real en
- * el servidor con ST_Distance_Sphere; esto solo dibuja el circulo.
- */
-function leerRadioActual(instancia: L.Map): number {
-  const zoom = instancia.getZoom();
-  const metrosPorPixel =
-    (156543.03392 * Math.cos((CENTRO_SAN_CARLOS[0] * Math.PI) / 180)) / 2 ** zoom;
-
-  // Radio aproximado de la mitad de la pantalla de un movil.
-  const estimado = Math.round((metrosPorPixel * 160) / 100) * 100;
-
-  const [masCerca] = RADIOS;
-  const masLejos = RADIOS[RADIOS.length - 1]!;
-
-  return Math.min(masLejos, Math.max(masCerca!, estimado));
 }

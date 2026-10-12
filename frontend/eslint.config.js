@@ -23,4 +23,12 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // Los archivos de configuracion los ejecuta Node, no el navegador.
+    // Sin esto, process no existe y el proxy de Vite no compila.
+    files: ['*.config.{js,ts}', 'eslint.config.js'],
+    languageOptions: {
+      globals: { process: 'readonly' },
+    },
+  },
 );
