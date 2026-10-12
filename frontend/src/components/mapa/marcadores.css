@@ -1,0 +1,183 @@
+/**
+ * Estilos de los marcadores del mapa. DS-7.
+ *
+ * Vanilla CSS a proposito: el HTML de los marcadores lo genera Leaflet
+ * como string, no como JSX, asi que Tailwind no puede escanearlo.
+ * Como la clase es dinamica (ds-marcador--favorito), tampoco serviria
+ * de todos modos.
+ */
+
+.ds-marcador-wrapper {
+  background: none;
+  border: none;
+}
+
+.ds-marcador {
+  position: relative;
+  display: flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--color-paper);
+  border-radius: 9999px;
+  background: var(--color-forest);
+  box-shadow: var(--shadow-md);
+  transition:
+    transform 200ms var(--ease-soft),
+    box-shadow 200ms var(--ease-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-marcador {
+    transition: none;
+  }
+}
+
+.ds-marcador:hover,
+.ds-marcador--resaltado {
+  transform: scale(1.12);
+  box-shadow: var(--shadow-lg);
+  z-index: 500;
+}
+
+/* Favorito: borde ambar. El ambar no se usa para texto, aqui es decorativo. */
+.ds-marcador--favorito {
+  border-color: var(--color-sun);
+}
+
+/* Verificado: fondo hoja para que se distinga del resto. */
+.ds-marcador--verificado {
+  background: var(--color-leaf);
+}
+
+/*
+ * RF-2.5: ubicacion aproximada. Un halo punteado indica que el punto
+ * real no se esta mostrando, sin tener que rotularlo.
+ */
+.ds-marcador--aproximado::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border: 2px dashed var(--color-leaf);
+  border-radius: 9999px;
+  opacity: 0.55;
+}
+
+.ds-marcador__foto {
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  object-fit: cover;
+}
+
+.ds-marcador__casa {
+  width: 20px;
+  height: 20px;
+  color: var(--color-paper);
+}
+
+.ds-marcador__verificado {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: flex;
+  width: 17px;
+  height: 17px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--color-paper);
+  border-radius: 9999px;
+  background: var(--color-leaf);
+  color: var(--color-paper);
+}
+
+.ds-marcador__verificado svg {
+  width: 9px;
+  height: 9px;
+}
+
+.ds-marcador__precio {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 7px;
+  border-radius: var(--radius-sm);
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.ds-marcador--fantasma {
+  border: none;
+  background: var(--color-leaf);
+  opacity: 0.35;
+  animation: ds-latido 1.4s ease-in-out infinite;
+}
+
+@keyframes ds-latido {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 0.2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-marcador--fantasma {
+    animation: none;
+    opacity: 0.35;
+  }
+}
+
+/* Etiqueta de distancia en el centro del circulo. */
+.ds-radio-etiqueta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-paper);
+  box-shadow: var(--shadow-md);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ds-radio-etiqueta__distancia {
+  color: var(--color-forest);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.ds-radio-etiqueta__conteo {
+  color: var(--color-stone);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Leaflet mete estilos propios; se ajustan al tema. */
+.leaflet-container {
+  background: var(--color-sand);
+  font-family: var(--font-sans);
+}
+
+.leaflet-control-attribution {
+  background: rgb(253 251 247 / 0.85);
+  color: var(--color-stone);
+  font-size: 0.6875rem;
+}
+
+.leaflet-control-attribution a {
+  color: var(--color-leaf);
+}
