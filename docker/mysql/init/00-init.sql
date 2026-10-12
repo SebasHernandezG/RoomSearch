@@ -1,0 +1,26 @@
+-- Scripts de inicializacion de MySQL para Roomies San Carlos
+--
+-- MySQL 8.4 ejecuta automaticamente todos los archivos .sql de este
+-- directorio SOLO cuando el volumen de datos esta vacio, es decir, la
+-- primera vez que se levanta el contenedor.
+--
+-- Para reejecutarlos despues hay que borrar el volumen:
+--     docker compose down -v
+--     docker compose up -d mysql
+--
+-- Laravel aplica sus propias migraciones con `php artisan migrate`.
+-- Este directorio es para lo que debe existir ANTES de que arranque
+-- Laravel: datos semilla de MySQL, usuarios de la base, ajustes de
+-- collation o configuracion que la aplicacion asume pero no controla.
+
+-- Ejemplo: asegurar que la base usa utf8mb4 con collation correcto
+-- para los acentos y la letra n con tilde que usa el espanol.
+--
+-- ALTER DATABASE roomies CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Ejemplo: Indices o vistas que deben existir desde el inicio.
+--
+-- CREATE VIEW IF NOT EXISTS active_properties AS
+--     SELECT id, title, ST_Y(location) AS latitude, ST_X(location) AS longitude
+--     FROM properties
+--     WHERE status = 'activa' AND location IS NOT NULL;
