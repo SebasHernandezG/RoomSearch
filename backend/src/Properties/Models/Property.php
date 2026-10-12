@@ -7,6 +7,7 @@ namespace Modules\Properties\Models;
 use Database\Factories\PropertyFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Modules\Identity\Models\User;
 
 /**
  * Un inmueble publicado por un arrendador.
@@ -16,7 +17,7 @@ use Illuminate\Database\Eloquent\Model;
  * deposito, servicios y la columna POINT SRID 4326-- llega con RF-2.2 y
  * RF-2.4, no antes.
  *
- * @see \Modules\Identity\Models\User  dueno de la publicacion
+ * @see User  dueno de la publicacion
  */
 class Property extends Model
 {
