@@ -12,11 +12,17 @@ RoomSearch/
 │   └── .ai/rules/           # Decisiones y trampas del proyecto. Leelas antes de codear
 ├── frontend/                # React + Vite; interfaz en frontend/src/
 ├── docker/
-│   ├── nginx/               # Reservado para el servidor web
-│   └── mysql/               # Scripts de inicialización
+│   ├── nginx/               # Reservado. Serviría el frontend en producción; ver su README
+│   └── mysql/init/          # Scripts de inicialización de MySQL
 ├── docker-compose.yml       # MySQL local
 └── README.md
 ```
+
+> **No hay servidor web de producción todavía.** En desarrollo lo sirve
+> Vite; en producción no hay nada configurado. Por eso la CSP de RNF-04
+> y el HTTPS de RNF-06 siguen abiertos: las dos las emite el servidor
+> que entrega el HTML, no Laravel. Ver
+> [`docker/nginx/README.md`](docker/nginx/README.md).
 
 ## Arquitectura
 
