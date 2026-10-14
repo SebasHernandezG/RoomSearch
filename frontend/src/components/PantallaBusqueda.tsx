@@ -363,8 +363,11 @@ export default function PantallaBusqueda() {
  *
  * 50 m es medio bloque: por debajo se nota el temblor al arrastrar y
  * por encima dejas de sentir el mapa pegado al dedo.
+ *
+ * Va exportada para probar el limite de los 50 m, que es el numero
+ * que evita el bucle de peticiones. Ver `.ai/rules/mapa-frontend.md`.
  */
-function sonLaMismaZona(a: PuntoZona, b: PuntoZona): boolean {
+export function sonLaMismaZona(a: PuntoZona, b: PuntoZona): boolean {
   const mediaMetrosPorGrado = 111_320;
 
   const metros = (unGrado: number) => unGrado * mediaMetrosPorGrado;

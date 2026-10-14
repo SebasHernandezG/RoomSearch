@@ -29,6 +29,7 @@ ninguna, porque se sigue creyendo.
 | [api.md](api.md) | `routes/api.php`, `app/Http/**` | Convenciones de la API: validación, Resources, rate limiting |
 | [auth.md](auth.md) | `src/Identity/**`, `app/Http/Middleware/**`, `lang/**` | Tokens, roles, límites de intentos y los 422 en español |
 | [mapa-frontend.md](mapa-frontend.md) | `frontend/src/components/mapa/**`, `frontend/src/components/PantallaBusqueda.tsx` | Los bucles entre mapa, zona y peticiones, y el tamaño del contenedor en Leaflet |
+| [vitest.md](vitest.md) | `frontend/**/*.test.ts`, `frontend/vite.config.js` | El runner del frontend, dónde viven las pruebas y qué no se prueba con DOM |
 
 ## Búsqueda rápida
 
@@ -46,5 +47,6 @@ grep -rin 'invalidate\|leaflet\|zoom' .ai/rules
   existan, agregar `profiles.md`.
 - Verificación de correo y recuperación de contraseña: llegan con
   RF-1.3.
-- Pruebas del frontend: **no hay runner**. Si agregás Vitest o similar,
-  documentalo acá, porque es el hueco más grande que queda.
+- **React Testing Library.** Vitest corre, pero solo se prueba lógica
+  suelta: no hay forma de montar un componente todavía. Ver
+  [vitest.md](vitest.md).
