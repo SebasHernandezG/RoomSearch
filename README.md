@@ -107,7 +107,7 @@ Solo dos importan:
 - API pública `GET /api/properties` con búsqueda por radio, filtros
   combinables, orden y rate limiting.
 - Frontend conectado a la API real: mapa Leaflet, lista y tarjetas.
-- Tests: **52** corriendo contra MySQL real, no SQLite.
+- Tests: **146** corriendo contra MySQL real, no SQLite.
 
 ### Lo que falta
 
