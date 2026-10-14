@@ -111,8 +111,52 @@ class PropertyController extends Controller
             $consulta->where('pets_allowed', $request->boolean('pets_allowed'));
         }
 
+        /*
+         * `parking` es el filtro que mas trampas tiene, porque su
+         * valor por defecto es cero.
+         *
+         * Con `where('parking_spaces', '>=', $request->boolean('parking')
+         * ? 1 : 0)`, pedir "sin parqueo" comparaba `>= 0`, que es
+         * cierto para TODAS las filas: el filtro no filtraba nada y
+         * devolvia la pagina entera. Quien lo prendia creyendo que
+         * estaba viendo solo los que no tienen parqueo estaba viendo
+         * los que tienen parqueo tambien.
+         *
+         * Por eso el cero se compara con igualdad, no con mayor o
+         * igual. Y por eso se usa `has()` y no `filled()`: `parking=0`
+         * esta presente aunque sea "falsy".
+         */
         if ($request->has('parking')) {
-            $consulta->where('parking_spaces', '>=', $request->boolean('parking') ? 1 : 0);
+            $request->boolean('parking')
+                ? $consulta->where('parking_spaces', '>=', 1)
+                : $consulta->where('parking_spaces', 0);
+        }
+
+        /*
+         * RF-2.2 pide los servicios incluidos como catalogo y no como
+         * texto libre: son tres casillas, no un campo de texto. Por eso
+         * se filtran por booleano y no con un `LIKE`.
+         *
+         * Un inmueble sin marcar un servicio tiene `false`, que es lo
+         * que la API devuelve; no hay un tercer estado de "no aplica".
+         */
+        foreach (['includes_water', 'includes_electricity', 'includes_internet'] as $servicio) {
+            if ($request->has($servicio)) {
+                $consulta->where($servicio, $request->boolean($servicio));
+            }
+        }
+
+        /*
+         * "Disponible desde el X": el inmueble entra al mundo el dia
+         * que dice `available_from`, asi que para estar disponible en la
+         * fecha que pide quien busca tiene que ser `<=` a ella.
+         *
+         * Y `available_from` es nullable: un inmueble sin fecha no se
+         * puede comparar con una fecha, y sale del resultado. No se
+         * inventa una fecha por defecto.
+         */
+        if ($request->filled('available_from')) {
+            $consulta->whereDate('available_from', '<=', $request->date('available_from'));
         }
 
         if ($request->filled('district')) {
@@ -120,8 +164,8 @@ class PropertyController extends Controller
         }
 
         // RF-4.3: busqueda por texto, sin distinguir acentos ni mayusculas.
-        if ($request->filled('q')) {
-            $termino = $request->string('q')->trim()->value();
+        if ($request->tieneTerminoDeBusqueda()) {
+            $termino = trim($request->string('q')->value());
 
             $consulta->where(function ($q) use ($termino): void {
                 $q->whereRaw('LOWER(title) LIKE ?', ['%'.mb_strtolower($termino).'%'])
