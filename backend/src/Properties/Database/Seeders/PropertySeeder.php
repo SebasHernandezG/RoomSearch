@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Properties\Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Modules\Identity\Models\User;
 use Modules\Properties\Enums\Currency;
 use Modules\Properties\Enums\PropertyStatus;
 use Modules\Properties\Enums\PropertyType;
@@ -163,8 +164,10 @@ class PropertySeeder extends Seeder
 
     public function run(): void
     {
+        $arrendadora = User::where('email', 'landlord@roomies.test')->sole();
+
         foreach (self::INMUEBLES as $indice => $datos) {
-            $this->publicar($datos, $indice)->save();
+            $this->publicar($datos, $indice, $arrendadora)->save();
         }
 
         $this->command?->info(sprintf(
@@ -181,9 +184,10 @@ class PropertySeeder extends Seeder
      *     habitaciones: int, banos: int, lat: float, lng: float
      * }  $datos
      */
-    private function publicar(array $datos, int $indice): Property
+    private function publicar(array $datos, int $indice, User $dueno): Property
     {
         return (new Property([
+            'user_id' => $dueno->getKey(),
             'title' => $datos['titulo'],
             'description' => $this->descripcion($datos),
             'type' => $datos['tipo'],

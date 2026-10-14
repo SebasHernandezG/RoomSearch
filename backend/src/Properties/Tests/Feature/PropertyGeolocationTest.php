@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Properties\Tests\Feature;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Properties\Enums\PropertyStatus;
 use Modules\Properties\Models\Property;
@@ -103,12 +104,31 @@ class PropertyGeolocationTest extends TestCase
         $this->assertLessThan(-83.0, $longitud);
     }
 
+    /**
+     * Toda publicacion tiene pin. No hay excepción.
+     *
+     * Antes `location` era nullable porque se suponía que un borrador
+     * podía quedarse en el paso 1 del formulario sin pin. RF-2.1 dice
+     * que toda publicación nueva nace en 'pendiente', así que ese
+     * borrador nunca existió, y la nulabilidad solo bloqueaba el
+     * índice espacial:
+     *
+     *   ERROR 1252: All parts of a SPATIAL index must be NOT NULL
+     */
     #[Test]
-    public function un_borrador_puede_existir_sin_pin(): void
+    public function una_publicacion_no_puede_existir_sin_pin(): void
     {
-        $borrador = Property::factory()->borrador()->withoutPin()->create();
+        $this->expectException(QueryException::class);
 
-        $this->assertNull($borrador->fresh()->latitude());
+        Property::factory()->create(['location' => null]);
+    }
+
+    #[Test]
+    public function un_borrador_tambien_tiene_pin(): void
+    {
+        $borrador = Property::factory()->borrador()->placePin(10.3236, -84.4274)->create();
+
+        $this->assertNotNull($borrador->fresh()->latitude());
         $this->assertSame(PropertyStatus::Borrador, $borrador->status);
     }
 

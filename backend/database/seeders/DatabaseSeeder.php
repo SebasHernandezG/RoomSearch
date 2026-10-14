@@ -15,13 +15,13 @@ class DatabaseSeeder extends Seeder
     /**
      * Seed the application's database.
      *
-     * El seeder de inmuebles va primero: sin propiedades el mapa abre
-     * vacio y no hay forma de revisar la busqueda por radio.
+     * Cuentas primero: las publicaciones tienen dueno, y el dueno
+     * tiene que existir antes de que se siembren.
      */
     public function run(): void
     {
-        $this->call(PropertySeeder::class);
-
         $this->call(CuentasSeeder::class);
+
+        $this->call(PropertySeeder::class);
     }
 }

@@ -74,27 +74,52 @@ Para redondear a 6 decimales: `CAST(ROUND(x, 6) AS CHAR)`.
 
 ---
 
-## El índice espacial todavía no existe
+## El índice espacial ya existe
 
 ```sql
 ERROR 1252: All parts of a SPATIAL index must be NOT NULL
 ```
 
-`location` es nullable porque RF-2.6 admite estado `borrador` y el
-formulario pide el pin en el paso 6 de 6. MySQL no permite un índice
-espacial sobre una columna nullable.
+`location` **es NOT NULL** desde RF-2.1. Antes era nullable porque se
+suponía que un borrador podía quedarse en el paso 1 del formulario
+(DS-8) sin pin, y MySQL no permite un índice espacial sobre una columna
+nullable: el índice estuvo bloqueado tres PRs por eso.
 
-**Se agrega cuando publicar exija el pin** (RF-2.1). Hasta entonces:
-
-- El filtro por radio no usa índice espacial.
-- Las columnas con índice BTREE (`status`, `district`, `monthly_rent`)
-  siguen sirviendo para lo que sí filtran.
-- El radio está acotado a 10 km para que la envoltura no degenere en
-  un table scan sobre toda la tabla.
+El supuesto resultó falso. RF-2.1 hace que toda publicación nueva
+nazca en `pendiente`, no en `borrador`, así que el borrador sin pin
+nunca llegó a existir. La migración
+`2026_10_12_040000_add_owner_and_spatial_index_to_properties_table.php`
+cambia la nulabilidad y agrega `spatialIndex('location')` en el mismo
+paso.
 
 Medido con 10 000 filas: con índice espacial se examinan 251 filas,
-sin él 5 077. La diferencia es la que separa cumplir RNF-01 de no
-cumplirlo.
+sin él 5 077.
+
+**No vuelvas a hacer nullable `location` para admitir un borrador sin
+pin.** Si aparece un estado que legitimately no tiene pin, el índice se
+cae y RNF-01 se cae con él.
+
+Dos pruebas lo vigilan, porque el fallo sería silencioso:
+
+- `PropertyRadiusQueryTest::la_columna_location_tiene_indice_espacial`
+- `PropertyRadiusQueryTest::la_columna_location_no_admite_nulos`
+
+### La migración usa MODIFY, nunca DROP + ADD
+
+La primera versión hacía `dropColumn('location')` y la volvía a agregar
+con `nullable(false)`. MySQL ejecuta el DROP, y cuando llega al ADD
+encuentra una tabla con filas y sin default:
+
+```
+ERROR 1138: Invalid use of NULL value
+```
+
+La migración se queda a medias y la tabla queda **sin la columna**, que
+es peor que no haberla cambiado. Para cambiar la nulabilidad se usa
+`->change()` sobre la columna existente.
+
+Igual hay que rellenar los nulos **antes** del `change()`: MySQL no
+aplica el default a las filas existentes cuando cambia la nulabilidad.
 
 ## `location` está en `$hidden`
 
@@ -104,3 +129,18 @@ ilegible. Se expone con `PropertyResource`, que además aplica RF-2.5
 
 **Nunca agregues `location` a `$visible`.** Si hace falta exponerla en
 algún rol, se hace en el Resource.
+
+## `user_id` tampoco se expone
+
+La respuesta de `PropertyResource` no lleva `user_id`. El listado
+público no tiene por qué darle a un visitante el id interno de quién
+publicó cada inmueble, y `PropertyController::show` tampoco.
+
+Para comprobar de quién es una publicación, la prueba mira **la base**:
+
+```php
+$this->assertDatabaseHas('properties', ['id' => $id, 'user_id' => $arrendadora->id]);
+```
+
+El Resource sigue siendo el lugar donde se decide qué ve cada rol, así
+que si algún día hay que exponerlo, se expone ahí y no en el modelo.

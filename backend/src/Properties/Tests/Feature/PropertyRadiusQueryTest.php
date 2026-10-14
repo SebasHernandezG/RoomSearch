@@ -7,6 +7,7 @@ namespace Modules\Properties\Tests\Feature;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Modules\Properties\Enums\PropertyStatus;
 use Modules\Properties\Models\Property;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -131,14 +132,23 @@ class PropertyRadiusQueryTest extends TestCase
     }
 
     /**
-     * La trampa 3: sin indice espacial la consulta no escala.
+     * La trampa 3: el indice espacial tiene que existir.
      *
-     * Todavia no hay indice espacial porque location es nullable y
-     * MySQL exige NOT NULL. Este test deja constancia de que la
-     * migracion que lo agregue se necesita.
+     * Estuvo tres PRs sin poder agregarse porque `location` era
+     * nullable y MySQL exige NOT NULL:
+     *
+     *   ERROR 1252: All parts of a SPATIAL index must be NOT NULL
+     *
+     * Ahora `location` es NOT NULL porque toda publicacion nace
+     * 'pendiente' (RF-2.1) y no hay borrador sin pin.
+     *
+     * Esta prueba que diga que NO hay indice estaba bien cuando la
+     * columna era nullable, y seria el error exacto que dejaria pasar
+     * a una migracion que deshaga el indice. Por eso ahora afirma lo
+     * contrario.
      */
     #[Test]
-    public function la_columna_location_sigue_sin_indice_espacial(): void
+    public function la_columna_location_tiene_indice_espacial(): void
     {
         $indices = DB::select(
             "SELECT INDEX_NAME FROM INFORMATION_SCHEMA.STATISTICS
@@ -151,14 +161,36 @@ class PropertyRadiusQueryTest extends TestCase
         );
 
         $this->assertCount(
-            0,
+            1,
             $espaciales,
-            'Todavia no debe haber indice espacial: location es nullable y MySQL lo prohibe.',
+            'location debe tener indice espacial: es lo que separa cumplir RNF-01 de no cumplirlo.',
         );
     }
 
     #[Test]
-    public function un_borrador_sin_pin_no_aparece(): void
+    public function la_columna_location_no_admite_nulos(): void
+    {
+        $nulos = DB::select(
+            "SELECT IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'properties'
+               AND COLUMN_NAME = 'location'"
+        );
+
+        $this->assertSame('NO', $nulos[0]->IS_NULLABLE);
+    }
+
+    /**
+     * Un borrador tiene pin, pero no sale: el filtro es por estado, no
+     * por la falta de coordenadas.
+     *
+     * Antes esto se probaba con una propiedad sin pin, y la fila
+     * quedaba fuera sola porque ST_Contains sobre NULL da NULL. Ese
+     * caso ya no puede existir (location es NOT NULL), asi que lo que
+     * se comprueba ahora es que el estadoPending no se filtre por el
+     * pin sino por `status`.
+     */
+    #[Test]
+    public function un_borrador_no_aparece_aunque_tenga_pin(): void
     {
         Property::factory()->borrador()->placePin(self::LAT, self::LNG)->create();
 
@@ -168,9 +200,10 @@ class PropertyRadiusQueryTest extends TestCase
     }
 
     #[Test]
-    public function una_propiedad_sin_pin_queda_fuera_del_radio(): void
+    public function una_publicacion_pendiente_de_moderacion_no_aparece(): void
     {
-        Property::factory()->activa()->withoutPin()->create();
+        Property::factory()->placePin(self::LAT, self::LNG)
+            ->create(['status' => PropertyStatus::Pendiente]);
 
         $this->getJson('/api/properties?lat='.self::LAT.'&lng='.self::LNG.'&radius=1000')
             ->assertOk()

@@ -8,7 +8,9 @@ use Database\Factories\PropertyFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
+use Modules\Identity\Models\User;
 use Modules\Properties\Enums\Currency;
 use Modules\Properties\Enums\PropertyStatus;
 use Modules\Properties\Enums\PropertyType;
@@ -29,6 +31,7 @@ class Property extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'user_id',
         'title',
         'description',
         'type',
@@ -122,6 +125,18 @@ class Property extends Model
         );
 
         return $this;
+    }
+
+    /**
+     * El dueno de la publicacion. RF-2.1.
+     *
+     * Puede ser null en dos casos, y ninguno es el normal: una fila
+     * anterior a esta columna, y una cuenta borrada (la FK es SET
+     * NULL a proposito). Por eso es nullable y no una FK NOT NULL.
+     */
+    public function dueno(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     /**
