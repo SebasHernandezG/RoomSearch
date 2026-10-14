@@ -30,7 +30,7 @@ Monolito modular con DDD ligero. Los módulos del backend viven en
 `backend/src/`:
 
 - `Properties`: alojamientos y publicaciones.
-- `Identity`: usuarios y roles. *Pendiente de RF-1.1.*
+- `Identity`: usuarios y roles.
 - `Interests`: solicitudes de contacto. *Pendiente.*
 
 Los roles iniciales son `admin` (superusuario), `landlord` (arrendador) y `tenant` (inquilino).
@@ -102,22 +102,47 @@ Solo dos importan:
 
 ## Estado actual
 
-- MySQL 8.4 en Docker, con el esquema completo de `properties` y la
-  columna `POINT SRID 4326`.
+- MySQL 8.4 en Docker, con el esquema completo de `properties`, la
+  columna `POINT SRID 4326` **con índice espacial** y el dueño de cada
+  publicación.
 - API pública `GET /api/properties` con búsqueda por radio, filtros
   combinables, orden y rate limiting.
-- Frontend conectado a la API real: mapa Leaflet, lista y tarjetas.
-- Tests: **146** en el backend contra MySQL real, no SQLite, y **50**
+- Registro e inicio de sesión con Sanctum, y tres roles: `admin`,
+  `landlord`, `tenant`.
+- Publicar, editar, pausar, reanudar, marcar como alquilada y borrar.
+  Lo publica un `landlord`; el estado lo fija el servidor y nace
+  `pendiente`.
+- Moderación: `approve` y `reject`, solo para `admin`. Es el único
+  camino por el que un inmueble se vuelve visible.
+- Frontend conectado a la API real para **buscar**: mapa Leaflet,
+  lista y tarjetas.
+- Tests: **182** en el backend contra MySQL real, no SQLite, y **50**
   en el frontend con Vitest.
+
+### Cuentas de demostración
+
+`php artisan migrate --seed` deja tres cuentas, una por rol, con la
+contraseña `password`:
+
+| Correo | Rol |
+| --- | --- |
+| `admin@roomies.test` | Administrador (aprueba publicaciones) |
+| `landlord@roomies.test` | Arrendadora (publica) |
+| `tenant@roomies.test` | Inquilino (busca) |
+
+El registro normal crea inquilinos. Para publicar hay que pasar la
+cuenta a `landlord`.
 
 ### Lo que falta
 
-- **Publicar un inmueble (RF-2.1).** Habilita el índice espacial, que
-  MySQL rechaza hoy porque `location` es nullable. **Es el bloqueador
-  principal**: sin esto la API no tiene forma de crear una publicación
-  y la plataforma sigue siendo de solo lectura.
+- **El formulario de publicación (DS-8).** La API está lista y probada
+  de punta a punta, pero en el frontend no hay pantalla: sigue siendo
+  una plataforma de solo lectura para quien la usa. Es el bloqueador
+  principal ahora.
 - **La pantalla de autenticación.** El registro y el login por API
   existen; en el frontend no hay formulario para nada de eso.
+- **El panel de moderación (RF-7.1).** Las dos rutas de moderar
+  funcionan, pero no hay cola ni panel que las llame.
 - **Fotos (RF-2.3)**, verificación de arrendador (RF-8.1) y
   favoritos (RF-6.1): los campos ya salen en la API, siempre vacíos.
 - **Probar componentes de React.** Vitest corre, pero solo se prueba

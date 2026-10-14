@@ -7,6 +7,7 @@ namespace Database\Factories;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Query\Expression;
 use Illuminate\Support\Facades\DB;
+use Modules\Identity\Models\User;
 use Modules\Properties\Enums\Currency;
 use Modules\Properties\Enums\PropertyStatus;
 use Modules\Properties\Enums\PropertyType;
@@ -52,6 +53,16 @@ class PropertyFactory extends Factory
         $esDolar = $this->faker->boolean(25);
 
         return [
+            /*
+             * Toda publicacion tiene dueno.
+             *
+             * Se crea una cuenta de arrendador por propiedad en vez de
+             * compartir una, porque las pruebas de autorizacion
+             * comparan "este inmueble es de este dueno" y un dueno
+             * compartido haria que dos pruebas se pisen.
+             */
+            'user_id' => User::factory()->landlord(),
+
             'title' => $this->faker->sentence(4),
             'description' => $this->faker->paragraph(),
             'type' => $this->faker->randomElement(PropertyType::cases()),
@@ -87,13 +98,12 @@ class PropertyFactory extends Factory
     }
 
     /**
-     * Sin pin: un borrador en el paso 1 del formulario (DS-8).
+     * De otro dueno, para probar autorizacion. RF-2.1.
      */
-    public function withoutPin(): static
+    public function de(User $dueno): static
     {
         return $this->state(fn (array $attributes): array => [
-            'location' => null,
-            'address_reference' => null,
+            'user_id' => $dueno->getKey(),
         ]);
     }
 

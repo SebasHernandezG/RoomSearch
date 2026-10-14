@@ -6,6 +6,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -82,5 +83,52 @@ return Application::configure(basePath: dirname(__DIR__))
             return response()->json([
                 'message' => trans('auth.sinSesion'),
             ], 401);
+        });
+
+        /*
+         * El 403 de una Policy sale en ingles.
+         *
+         * AuthorizationException lleva 'This action is unauthorized.'
+         * escrito a mano en el framework, sin pasar por traduccion:
+         *
+         *   parent::__construct($message ?? 'This action is unauthorized.', ...)
+         *
+         * O sea que hay dos caminos al 403 y cada uno en su idioma. El
+         * middleware `role:` contesta 'Esta cuenta no puede hacer
+         * eso.' y `$this->authorize()` contesta en ingles. Para quien
+         * esta usando la plataforma es el mismo problema: no publica,
+         * y el mensaje no le dice nada.
+         *
+         * Se escucha `AccessDeniedHttpException` y NO
+         * `AuthorizationException`. El handler convierte una en la
+         * otra en prepareException(), y esa conversion ocurre ANTES
+         * de que corran los callbacks de render():
+         *
+         *   AuthorizationException && ! hasStatus()
+         *       -> new AccessDeniedHttpException($e->getMessage(), $e)
+         *
+         * Un callback tipado con AuthorizationException no se activa
+         * nunca, y no da ningun error: simplemente no se ejecuta. Es
+         * el mismo fallo silencioso que una Policy sin registrar.
+         *
+         * Se usa la MISMA clave que el middleware a proposito: que las
+         * dos formas de negarle algo a alguien digan lo mismo.
+         *
+         * No se personaliza por Policy ('esta publicacion no es tuya',
+         * 'tu cuenta no puede publicar'): un 403 con detalle distinto
+         * segun el caso le dice a quien va probando rutas cuales
+         * existen y cuales no.
+         */
+        $exceptions->render(function (
+            AccessDeniedHttpException $e,
+            Request $request,
+        ) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+
+            return response()->json([
+                'message' => trans('auth.noAutorizado'),
+            ], 403);
         });
     })->create();

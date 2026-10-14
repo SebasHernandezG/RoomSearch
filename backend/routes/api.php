@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\MyPropertyController;
 use App\Http\Controllers\Api\PropertyController;
 use Illuminate\Support\Facades\Route;
 
@@ -54,4 +55,47 @@ Route::middleware(['throttle:api', 'auth:sanctum'])->group(function (): void {
 
     Route::post('/logout', [AuthController::class, 'logout'])
         ->name('api.logout');
+
+    /*
+     | Publicaciones propias. RF-2.1.
+     |
+     | Viven aparte de GET /api/properties a proposito: el listado
+     | publico no exige sesion y solo devuelve las activas; estas son
+     | las del dueno, con todos los estados.
+     */
+    Route::get('/my/properties', [MyPropertyController::class, 'index'])
+        ->name('api.my.properties.index');
+
+    Route::post('/properties', [MyPropertyController::class, 'store'])
+        ->name('api.properties.store');
+
+    Route::put('/properties/{property}', [MyPropertyController::class, 'update'])
+        ->name('api.properties.update');
+
+    Route::delete('/properties/{property}', [MyPropertyController::class, 'destroy'])
+        ->name('api.properties.destroy');
+
+    Route::post('/properties/{property}/pause', [MyPropertyController::class, 'pause'])
+        ->name('api.properties.pause');
+
+    Route::post('/properties/{property}/resume', [MyPropertyController::class, 'resume'])
+        ->name('api.properties.resume');
+
+    Route::post('/properties/{property}/rented', [MyPropertyController::class, 'markRented'])
+        ->name('api.properties.rented');
+
+    /*
+     | Moderacion. RF-7.1.
+     |
+     | Estas dos rutas son el unico camino por el que una publicacion
+     | se vuelve visible. Sin ellas, publicar no cierra de punta a
+     | punta: nadie veria nunca un inmueble nuevo.
+     */
+    Route::post('/properties/{property}/approve', [MyPropertyController::class, 'approve'])
+        ->middleware('role:admin')
+        ->name('api.properties.approve');
+
+    Route::post('/properties/{property}/reject', [MyPropertyController::class, 'reject'])
+        ->middleware('role:admin')
+        ->name('api.properties.reject');
 });

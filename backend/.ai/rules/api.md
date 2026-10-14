@@ -4,14 +4,35 @@ Aplica a: `routes/api.php`, `app/Http/**`, `app/Providers/AppServiceProvider.php
 
 ## Prefijo
 
-Todo va bajo `/api` y sin sesión. RF-1.4 dice que quien busca no
-necesita cuenta. La autenticación entra con RF-1.1 y vive en un grupo
-de rutas aparte, no mezclada con las públicas.
+Todo va bajo `/api`. RF-1.4 dice que quien busca no necesita cuenta, así
+que el archivo tiene **dos grupos y no uno con mezcla**: el primero son
+las rutas públicas y el segundo las que exigen `auth:sanctum`. Una ruta
+nueva en el grupo equivocado no rompe nada visible: rompe la promesa de
+que se puede buscar sin cuenta.
 
 `bootstrap/app.php` fuerza la respuesta JSON en `api/*`, así que un
 error dentro de un controlador devuelve JSON y no HTML. Un controlador
 que lance una excepción no necesita construir la respuesta de error a
 mano.
+
+## Dos listados, y no son el mismo
+
+| Ruta | Sesión | Devuelve |
+| --- | --- | --- |
+| `GET /api/properties` | no | Solo `activa` |
+| `GET /api/my/properties` | sí | Las de la persona, con todos los estados |
+
+El dueño tiene que ver también lo suyo en borrador, pendiente o
+pausado. Por eso el listado propio **no es el público filtrado por
+`user_id`**: es otra consulta y por lo tanto otra ruta. Si se filtrara
+el público, se cambiaría lo que ve un visitante anónimo.
+
+## Publicar: el estado no viene del cuerpo
+
+`POST /api/properties` nace siempre en `pendiente`, y lo fija
+`MyPropertyController::store` en vez de tomarlo del request. Si el
+cliente pudiera mandar `status: activa`, la moderación de RF-7.1 sería
+decorativa. Ver [auth.md](auth.md).
 
 ## Validación: FormRequest, no validación en el controlador
 
@@ -90,16 +111,25 @@ Todo lo que sale por un Resource. No devuelvas el modelo.
 pasa por `PropertyLocation::distanciaRevelable()`, no por un `round()`
 en el Resource: la regla de privacidad es del dominio.
 
-Los tres campos que hoy salen vacíos a propósito:
+Los dos campos que hoy salen vacíos a propósito:
 
 ```php
 'images' => [],              // RF-2.3, pendiente
 'landlord_verified' => false, // RF-8.1, pendiente
-'is_favorite' => false,       // necesita sesión, RF-1.1
+'is_favorite' => false,       // RF-6.1, pendiente
 ```
+
+`is_favorite` ya no está bloqueada por la falta de sesión: con
+RF-1.1 el guard resuelve el usuario. Sigue en `false` porque la tabla
+de favoritos no existe todavía, no porque no se pueda saber.
 
 Están para que el frontend pueda compilar contra la forma final. El
 frontend **no debe** inventar un `true` cuando vienen vacíos.
+
+`user_id` **no** sale, ni en el listado público ni en el detalle: es el
+id interno de quien publicó y un visitante no lo necesita. Para
+comprobar de quién es una publicación, la prueba mira la base. Ver
+[mysql-geoespacial.md](mysql-geoespacial.md).
 
 ## Rate limiting (RNF-05)
 

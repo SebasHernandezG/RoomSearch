@@ -6,8 +6,11 @@ namespace App\Providers;
 
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Modules\Properties\Models\Property;
+use Modules\Properties\Models\PropertyPolicy;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -25,6 +28,14 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->limitarLecturasPublicas();
+
+        /*
+         * La politica de inmueble vive en Modules\Properties\Models, no
+         * en App\Policies. Laravel la buscaria en App\Policies por
+         * convencion de nombre y no la encontraria: sin esto TODAS las
+         * autorizaciones pasan, silenciosamente.
+         */
+        Gate::policy(Property::class, PropertyPolicy::class);
     }
 
     /**

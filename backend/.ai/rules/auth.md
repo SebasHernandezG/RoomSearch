@@ -1,9 +1,11 @@
-# Autenticación y roles
+# Autenticación, roles y autorizaciones
 
-Aplica a: `routes/api.php`, `src/Identity/**`, `app/Http/Middleware/**`,
+Aplica a: `routes/api.php`, `src/Identity/**`, `src/Properties/Models/PropertyPolicy.php`,
+`app/Http/Middleware/**`, `app/Providers/AppServiceProvider.php`,
 `bootstrap/app.php`, `lang/es/**`.
 
-Cubre RF-1.1 (registro e inicio de sesión) y RF-1.4 (roles).
+Cubre RF-1.1 (registro e inicio de sesión), RF-1.4 (roles) y quién
+puede tocar una publicación (RF-2.1 y RF-7.1).
 
 ---
 
@@ -39,8 +41,34 @@ aparte.
 `can($abilities, $arguments = [])`. Redefinirla impide que el modelo
 cargue, y rompería los Gate de Laravel más adelante.
 
-Cuando lleguen las Policies: este método queda para preguntas simples
-de rol, y las autorizaciones con lógica van por `Gate::define`.
+`tieneRol()` sigue siendo lo que usa el middleware `role:`, que solo
+pregunta "¿tenés alguno de estos roles?":
+
+```
+->middleware('role:admin')
+```
+
+Las autorizaciones con lógica ya existen y van por `Gate`, en
+`PropertyPolicy`: quién es el dueño de un inmueble no es una pregunta
+de rol sino de pertenencia, y el middleware no puede responderla.
+
+## La Policy hay que registrarla a mano
+
+`PropertyPolicy` vive en `Modules\Properties\Models`, no en
+`App\Policies`, porque es una regla de negocio y no transporte HTTP.
+Laravel la buscaría en `App\Policies` por convención de nombre, no la
+encontraría, y **todas las autorizaciones pasarían en silencio**: sin
+Policy, `authorize()` no encuentra nada que lo niegue y deja pasar.
+
+Por eso `AppServiceProvider::boot()` hace:
+
+```php
+Gate::policy(Property::class, PropertyPolicy::class);
+```
+
+Un `authorize()` que no existe no da error. Es el fallo más caro de
+esta parte: protegería la prueba contra sí mismo si no probara que un
+tercero **no** puede editar la publicación de otro.
 
 ## `role` en inglés, `rol` en los métodos
 
@@ -64,6 +92,45 @@ porque el guard va primero en la cadena. Por eso el mensaje se
 traduce en `bootstrap/app.php` (`withExceptions`), no en
 `EnsureUserHasRole`: el problema es general, le pasa a toda petición
 sin token válido.
+
+## El 403 se traduce escuchando `AccessDeniedHttpException`
+
+Hay dos caminos al 403 y cada uno salía en su idioma: el middleware
+`role:` contestaba "Esta cuenta no puede hacer eso." y
+`$this->authorize()` contestaba `This action is unauthorized.`, que es
+un string escrito a mano en `AuthorizationException` y que no pasa por
+traducción.
+
+Ahora los dos usan `auth.noAutorizado`. Pero el callback de `bootstrap/app.php`
+está tipado con **`AccessDeniedHttpException`**, y no con
+`AuthorizationException`, por esto:
+
+```
+Handler::render()
+  -> mapException()
+  -> prepareException()        <-- convierte una en la otra
+  -> renderViaCallbacks()      <-- los callbacks de render()
+```
+
+`prepareException()` corre **antes**, y reemplaza
+`AuthorizationException` por `AccessDeniedHttpException`. Un callback
+tipado con `AuthorizationException` no se activa nunca y no da ningún
+error: simplemente no se ejecuta.
+
+Es el mismo tipo de fallo silencioso que una Policy sin registrar en
+`Gate`: algo que debería estar protegiendo y que en realidad no está.
+
+Dos pruebas lo fijan: `el_403_de_la_politica_no_sale_en_ingles` y
+`el_403_de_una_ruta_real_lleva_el_mensaje_en_espanol`.
+
+**El mensaje es uno solo, para todos los 403.** No se personaliza por
+Policy ("esta publicación no es tuya", "tu cuenta no puede publicar"):
+un 403 con detalle distinto según el caso le dice a quien va probando
+rutas cuáles existen y cuáles no.
+
+Por eso `lang/es/propiedades.php` **no** tiene claves de 403. Si
+alguien necesita un 403 más específico, hay que romper este acuerdo a
+propósito y volver a esta sección.
 
 ## El límite de intentos cuenta fallidos
 
@@ -133,16 +200,60 @@ siguiente petición **falla** sin:
 $this->app['auth']->forgetGuards();
 ```
 
-En producción no hace falta: cada petición arranca de cero. Si
-olvidás esa línea, la prueba pasa al revés de como funciona el sistema
-real, que es peor que no tenerla.
+### Cambiar de identidad a mitad de una prueba también
 
-## Pruebas contra rutas montadas al vuelo
+`PublishPropertyFlowTest` recorre el flujo completo: la arrendadora
+publica y después **un admin** la aprueba. Sin `forgetGuards()` entre
+los dos, la petición del admin llega con su token correcto pero el
+guard sigue teniendo a la arrendadora de la petición anterior, y el
+middleware `role:admin` responde **403**. Parece un bug de permisos y
+es un bug de la prueba.
 
-`RoleMiddlewareTest` monta sus propias rutas porque todavía no existe
-RF-2.1 ni RF-7.1. **Cuando existan, hay que repetir esas mismas
-pruebas contra las rutas de verdad**: un middleware bien escrito y
-aplicado a la ruta equivocada deja pasar a cualquiera.
+En producción no hace falta nada de esto: cada petición arranca de
+cero. Si olvidás la línea, la prueba pasa al revés de como funciona el
+sistema real, que es peor que no tenerla.
+
+## Pruebas contra rutas montadas al vuelo y contra las de verdad
+
+`RoleMiddlewareTest` tiene las dos mitades, y las dos importan:
+
+- **Rutas montadas al vuelo** (`/prueba/admin`, …) prueban el
+  middleware como pieza suelta: qué hace con cada rol y con cada rol
+  mal escrito.
+- **Las rutas de verdad** prueban que el middleware quedó **colgado de
+  la ruta correcta**. Un middleware bien escrito y aplicado a la ruta
+  equivocada deja pasar a cualquiera, y la primera mitad no lo
+  detecta.
+
+Lo segundo ya se puede hacer porque RF-2.1 y RF-7.1 tienen rutas
+(`/api/properties`, `/api/my/properties`,
+`/api/properties/{id}/approve`). Cuando llegue el panel de
+administración, se repite la idea contra sus rutas.
+
+## `store` fija el estado y el dueño
+
+Igual que el rol en el registro, en `MyPropertyController::store` el
+estado y el `user_id` **no vienen del cuerpo**:
+
+```php
+'status' => PropertyStatus::Pendiente,   // fijo, ni aunque manden 'activa'
+'user_id' => $request->user()->getKey(),
+```
+
+Si el estado viniera del cliente, la moderación de RF-7.1 sería
+decorativa. Dos pruebas lo fijan: `el_estado_no_se_puede_elegir_al_publicar`
+y `el_dueno_no_se_puede_elegir_al_publicar`.
+
+## `StorePropertyRequest` sirve para crear y para editar
+
+A propósito son el mismo request, y por eso **todos los campos son
+`required` también en un `PUT`**: una edición es un reemplazo completo,
+no un parche. Si divergieran, alguien podría publicar algo que después
+no podría editar sin cambiar más campos, y la publicación se rompe a
+la mitad.
+
+Consecuencia: el frontend tiene que mandar el objeto entero al
+editar, no solo lo que cambió.
 
 ## Lo que falta
 
