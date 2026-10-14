@@ -34,9 +34,13 @@ class UserResource extends JsonResource
             // un inmueble" o "buscar roomies".
             'role' => $this->role?->value,
 
-            // RF-1.3 (verificación de correo) todavía no existe, así
-            // que esto siempre sale true. Se deja el campo para que el
-            // frontend no tenga que cambiar de forma cuando llegue.
+            /*
+             * RF-1.3. Sale `false` desde el registro y pasa a `true`
+             * cuando la persona abre el enlace del correo.
+             *
+             * El frontend lo necesita para decidir si puede mostrar
+             * "confirmá tu correo" en lugar del formulario de publicar.
+             */
             'email_verified' => $this->email_verified_at !== null,
 
             'created_at' => $this->created_at?->toIso8601String(),

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Modules\Identity\Models;
 
 use Database\Factories\UserFactory;
+use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailConcern;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,13 +14,35 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Modules\Identity\Enums\UserRole;
+use Modules\Identity\Notifications\VerifyEmailNotification;
 
+/*
+ * `MustVerifyEmail` son DOS cosas con el mismo nombre: el contrato de
+ * Illuminate\Contracts y el trait de Illuminate\Auth. Por eso los dos
+ * imports llevan alias.
+ *
+ * El contrato es lo que activa el middleware `verified`; el trait es lo
+ * que trae `hasVerifiedEmail()` y `markEmailAsVerified()`.
+ *
+ * RF-1.3. Sin esto, `email_verified_at` es una columna que nadie lee.
+ */
 #[Fillable(['name', 'email', 'password', 'role'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, MustVerifyEmailConcern, Notifiable;
+
+    /**
+     * La notificacion de verificacion es la del modulo, no la de Laravel.
+     *
+     * Por defecto Laravel manda la suya, que habla ingles y no pasa por
+     * la cola. Ver Modules\Identity\Notifications\VerifyEmailNotification.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new VerifyEmailNotification);
+    }
 
     /**
      * Get the attributes that should be cast.

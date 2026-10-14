@@ -29,4 +29,28 @@ return [
 
     'sinSesion' => 'Necesitás iniciar sesión para hacer eso.',
 
+    /*
+    | RF-1.3 · Verificación de correo y recuperación de contraseña.
+    |
+    | Mismo criterio que `failed`: la respuesta no dice si la cuenta
+    | existe. `verificacionEnviada` y `resetEnviado` son la MISMA
+    | palabra exista o no la cuenta, porque si se distinguieran estos
+    | dos endpoints servirían para enumerar quién tiene cuenta, que es
+    | justo lo que el login evita.
+    */
+
+    'verificacionEnviada' => 'Si esa cuenta existe y falta confirmarla, te enviamos el enlace.',
+
+    'verificacionInvalida' => 'Ese enlace no sirve. Pedí uno nuevo.',
+
+    'yaVerificado' => 'Tu correo ya estaba confirmado.',
+
+    'verificado' => '¡Listo! Tu correo quedó confirmado.',
+
+    'resetEnviado' => 'Si esa cuenta existe, te enviamos un enlace para cambiar la contraseña.',
+
+    'resetFallido' => 'Ese enlace ya no sirve. Pedí uno nuevo.',
+
+    'resetHecho' => 'Cambiamos tu contraseña. Ya podés entrar con la nueva.',
+
 ];

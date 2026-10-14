@@ -109,6 +109,8 @@ Solo dos importan:
   combinables, orden y rate limiting.
 - Registro e inicio de sesión con Sanctum, y tres roles: `admin`,
   `landlord`, `tenant`.
+- Verificación de correo y recuperación de contraseña, con enlace
+  firmado, token de un solo uso y rate limiting.
 - Publicar, editar, pausar, reanudar, marcar como alquilada y borrar.
   Lo publica un `landlord`; el estado lo fija el servidor y nace
   `pendiente`.
@@ -116,7 +118,7 @@ Solo dos importan:
   camino por el que un inmueble se vuelve visible.
 - Frontend conectado a la API real para **buscar**: mapa Leaflet,
   lista y tarjetas.
-- Tests: **182** en el backend contra MySQL real, no SQLite, y **50**
+- Tests: **209** en el backend contra MySQL real, no SQLite, y **68**
   en el frontend con Vitest.
 
 ### Cuentas de demostración

@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\LoginRequest;
 use App\Http\Requests\Api\RegisterRequest;
 use App\Http\Resources\UserResource;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -30,12 +31,24 @@ class AuthController extends Controller
      * Registrar e iniciar sesion en una sola llamada: pedirle a alguien
      * que se registre y despues vaya a "iniciar sesion" con lo que
      * acaba de escribir es un paso que no aporta nada.
+     *
+     * La cuenta nace SIN verificar y se manda el correo. RF-1.3: sin
+     * confirmar el correo, publicar es escribir a cualquiera con
+     * cualquier direccion.
      */
     public function register(RegisterRequest $request): JsonResponse
     {
         $usuario = User::create($request->datosParaCrear());
 
-        return $this->respuestaConToken($usuario, 'Cuenta creada.');
+        /*
+         * El envio va en la cola (la notificacion implementa ShouldQueue),
+         * asi que esto no espera al SMTP. Si el correo falla, la cuenta
+         * ya esta creada y se puede pedir un reenvio; al reves, la
+         * pantalla de registro se quedaria colgada.
+         */
+        event(new Registered($usuario));
+
+        return $this->respuestaConToken($usuario, 'Cuenta creada. Te enviamos un correo para confirmarla.');
     }
 
     /**
