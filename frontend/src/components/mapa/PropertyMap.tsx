@@ -314,8 +314,12 @@ export default function PropertyMap({
  * cabia, fitBounds no mueve nada y no llega ningun moveend que
  * limpiar; el temporal deja el mapa listo para el siguiente movimiento
  * real de la persona.
+ *
+ * Va exportada, junto con `ajustesEnCurso`, para poder probar que el
+ * guardia se levanta solo y no depende de que llegue un `moveend`.
+ * Ver `.ai/rules/mapa-frontend.md`.
  */
-function ajustarVista(instancia: L.Map, circulo: L.Circle): void {
+export function ajustarVista(instancia: L.Map, circulo: L.Circle): void {
   // El guardia vive fuera del componente: esta funcion se llama desde
   // el efecto del circulo y desde el ResizeObserver, y los dos
   // necesitan el mismo.
@@ -334,7 +338,7 @@ function ajustarVista(instancia: L.Map, circulo: L.Circle): void {
  * Vive fuera del componente porque ajustarVista se llama desde dos
  * efectos distintos y un ref no llega al helper suelto.
  */
-const ajustesEnCurso = new WeakSet<L.Map>();
+export const ajustesEnCurso = new WeakSet<L.Map>();
 
 /**
  * Lee el centro del mapa como punto de zona.

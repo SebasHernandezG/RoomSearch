@@ -81,14 +81,44 @@ Todo sale de `src/lib/microcopy.ts`. No escribas strings sueltos en los
 componentes. El tono es costarricense, en "vos", sin lenguaje
 corporativo.
 
-## Lo que NO hay
+## Hay runner: Vitest
 
-**No hay runner de pruebas en el frontend.** El bucle de 779
-peticiones lo cazó una persona leyendo el log del servidor. No lo
-detectó ninguna prueba, porque no hay ninguna.
+Vitest corre desde la RF-2.1 (ver
+[vitest.md](vitest.md)). Las pruebas viven **junto al codigo**, con
+sufijo `.test.ts`:
 
-`sonLaMismaZona()` y `ajustarVista()` son funciones puras y fáciles de
-probar: son las primeras candidatas cuando se agregue Vitest.
+```
+src/components/PantallaBusqueda.test.ts     sonLaMismaZona
+src/components/mapa/PropertyMap.test.ts     ajustarVista, ajustesEnCurso
+src/lib/format.test.ts                      formatPrice, formatDistance
+src/lib/api.test.ts                         ErrorApi, Retry-After, filtros
+```
+
+Las dos primeras existen **por este archivo**: `sonLaMismaZona()` y
+`ajustarVista()` son las candidatas que aqui se nombraban como las
+primeras que habia que probar, y ya lo estan. Los 779 peticiones
+ahora tienen una prueba que las frena.
+
+Para que una funcion sea testeable hay que **exportarla**. No es un
+cambio de comportamiento y no ensucia la API del componente: es lo
+mismo que hace el backend al dejar las reglas de dominio en el modulo
+para poder probarlas sin HTTP.
+
+## Mockear, no montar
+
+`PropertyMap.test.ts` **no levanta Leaflet**. Usa mapas de mentira.
+
+No es vagancia: en jsdom, Leaflet depende de medidas de capas que no
+existen, y domarlas es un problema mas grande que el que se quiere
+probar. `ajustarVista()` solo necesita que `fitBounds` reciba los
+limites del circulo y que se pueda preguntar si el mapa esta marcado.
+Nada mas.
+
+Si alguna vez hay que probar algo que si depende del Leaflet de
+verdad, ese caso pide `@vitest/browser-playwright`, no un `vi.mock`
+mas grande.
+
+---
 
 ## Conflicto sin resolver en DS-7
 

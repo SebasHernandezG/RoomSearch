@@ -107,14 +107,18 @@ Solo dos importan:
 - API pública `GET /api/properties` con búsqueda por radio, filtros
   combinables, orden y rate limiting.
 - Frontend conectado a la API real: mapa Leaflet, lista y tarjetas.
-- Tests: **146** corriendo contra MySQL real, no SQLite.
+- Tests: **146** en el backend contra MySQL real, no SQLite, y **50**
+  en el frontend con Vitest.
 
 ### Lo que falta
 
-- **Autenticación (RF-1.1).** Hoy la plataforma es de solo lectura:
-  nadie puede publicar. Es el bloqueador principal.
 - **Publicar un inmueble (RF-2.1).** Habilita el índice espacial, que
-  MySQL rechaza hoy porque `location` es nullable.
+  MySQL rechaza hoy porque `location` es nullable. **Es el bloqueador
+  principal**: sin esto la API no tiene forma de crear una publicación
+  y la plataforma sigue siendo de solo lectura.
+- **La pantalla de autenticación.** El registro y el login por API
+  existen; en el frontend no hay formulario para nada de eso.
 - **Fotos (RF-2.3)**, verificación de arrendador (RF-8.1) y
-  favoritos: los campos ya salen en la API, siempre vacíos.
-- **Pruebas del frontend.** No hay runner.
+  favoritos (RF-6.1): los campos ya salen en la API, siempre vacíos.
+- **Probar componentes de React.** Vitest corre, pero solo se prueba
+  lógica suelta: falta React Testing Library para montar un componente.
