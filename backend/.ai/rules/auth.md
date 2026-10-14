@@ -188,6 +188,120 @@ Dos fuentes para el mismo texto es peor que una.
 
 ---
 
+## Verificación de correo (RF-1.3)
+
+La cuenta nace **sin verificar** y nadie publica hasta confirmar el
+correo. Sin eso, publicar es escribir a cualquiera con cualquier
+dirección.
+
+### `MustVerifyEmail` son dos cosas con el mismo nombre
+
+```php
+use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailConcern;      // trait
+use Illuminate\Contracts\Auth\MustVerifyEmail;                      // contrato
+
+class User extends Authenticatable implements MustVerifyEmail
+{
+    use MustVerifyEmailConcern;
+}
+```
+
+El **contrato** es lo que activa el middleware `verified`. El **trait**
+trae `hasVerifiedEmail()` y `markEmailAsVerified()`. Sin los dos, o
+con solo uno, el modelo compila pero no verifica a nadie.
+
+### La notificación va en la cola
+
+`VerifyEmailNotification implements ShouldQueue`. Registrarse tiene que
+responder rápido: si el envío falla, la cuenta ya está creada y se puede
+pedir un reenvío. Al revés —crear la cuenta dentro del envío— un SMTP
+lento significa una pantalla de registro colgada.
+
+### El enlace apunta a la API, no a la SPA
+
+`VerifyEmailNotification::verificationUrl()` construye una URL **firmada**
+a `GET /api/email/verify/{id}/{hash}`, y no a una ruta del frontend.
+
+La razón es que **la pantalla de verificación todavía no existe**: un
+enlace a una ruta inexistente deja a la persona con un 404 en el
+momento en que está más frustrada.
+
+Cuando exista esa pantalla se cambia **solo ese método** para que apunte
+a `/verificar-correo?id=..&hash=..` y la SPA haga el POST. El esquema
+del enlace y el endpoint no cambian.
+
+## Reenviar el correo: no acepta un correo
+
+`POST /api/email/verification-notification` **no recibe `email`**. El
+destinatario sale del token.
+
+Aceptarlo sería un agujero: con un token propio y el correo de otra
+persona en el cuerpo, cualquiera podría pedir cientos de correos a una
+dirección ajena y hundirla en spam sin haber tocado su propia cuenta.
+
+Sin límite además es un cañón de correo, así que hay uno: **6 por
+minuto**, en `SendVerificationEmailRequest`. Más alto que el del login
+(5) porque pedir que te reenvíen un correo legítimo no es un ataque: la
+letra se pierde, la bandeja se vacía sola.
+
+El contador se suma **solo si se llegó a mandar**. Si sumara antes,
+bastaba con escribir el correo de otra persona para agotarle el
+limite.
+
+## Recuperar contraseña: el correo también es obligatorio
+
+Este es el que más costó. `POST /api/reset-password` necesita `token`,
+`email` **y** `password`.
+
+El broker busca la cuenta con:
+
+```php
+$provider->retrieveByCredentials(['email' => .., 'token' => ..]);
+```
+
+Y el provider de Eloquent **descarta todo lo que no sea una columna de
+la tabla**. `token` no es una columna, así que se va; `password` se va
+explícitamente porque contiene la palabra. Sin el `email` en el cuerpo,
+las credenciales quedan **vacías**, `retrieveByCredentials` devuelve el
+**primer usuario de la tabla**, y la comprobación del token se hace
+contra la cuenta equivocada.
+
+El síntoma es silencioso y confuso: la API responde `422 "Ese enlace ya
+no sirve"` en vez de un 500, y el reset simplemente nunca funciona.
+`PasswordResetTest` lo cubre.
+
+### El mensaje es el mismo exista la cuenta o no
+
+`POST /api/forgot-password` responde **siempre 200** con el mismo texto.
+Si el broker devuelve `INVALID_USER` y el controlador lo tradujera a un
+error, el endpoint serviría para saber quién tiene cuenta, que es
+justo lo que `POST /api/login` evita a propósito.
+
+El `422` sí distingue casos, pero solo entre "el enlace no sirve" y
+"sí sirve". Un token inválido y uno vencido son el mismo problema para
+quien lo tiene enfrente.
+
+### El token va en el cuerpo, no en la URL
+
+Una URL queda en los logs del servidor y del proxy. El cuerpo no. Por
+eso la ruta es `POST /api/reset-password` sin `{token}`, y hay una
+prueba que lo fija.
+
+## `availableIn` no es el estado del límite
+
+```php
+RateLimiter::availableIn($clave)   // segundos que quedan de la VENTANA
+RateLimiter::tooManyAttempts(...)  // si se pasó el máximo
+```
+
+`availableIn` devuelve **0 cuando la ventana ya se cumplió**, que es
+cosa distinta de "se agotó el límite". Un 429 con `Retry-After: 0`
+deja a la persona reintentando sin parar contra un techo que sigue
+intacto. El patrón correcto es el de `LoginRequest`: `tooManyAttempts`
+para decidir y `availableIn` para el mensaje, con `max(., 1)`.
+
+---
+
 ## Tests: el guard se cachea entre peticiones
 
 En pruebas todas las peticiones comparten la misma instancia de la
@@ -257,10 +371,13 @@ editar, no solo lo que cambió.
 
 ## Lo que falta
 
-- **RF-1.3**: verificación de correo y recuperación de contraseña.
-  `password_reset_tokens` ya existe en el esquema; la parte de
-  verificación de correo no.
 - **RF-1.2**: Google, en v2.
 - **RF-1.5**: perfil de arrendador con teléfono y foto.
+- **"Las cuentas sin verificar no pueden publicar"** (criterio de
+  RF-1.3). El middleware `verified` ya funciona y el modelo ya lo
+  implementa, pero **no está aplicado a `POST /api/properties`**: esa
+  ruta la crea RF-2.1. Va en la Policy, no solo en el middleware —un
+  middleware bien escrito y aplicado a la ruta equivocada deja pasar a
+  cualquiera— y hay una prueba que lo fija.
 - **CSP (RNF-04)**: mientras no exista, el token en `localStorage` es
   un riesgo asumido, no resuelto.

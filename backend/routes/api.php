@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\MyPropertyController;
+use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PropertyController;
 use Illuminate\Support\Facades\Route;
 
@@ -40,6 +42,40 @@ Route::middleware('throttle:api')->group(function (): void {
 
     Route::post('/login', [AuthController::class, 'login'])
         ->name('api.login');
+
+    /*
+     | Verificacion de correo. RF-1.3.
+     |
+     | `/email/verify/{id}/{hash}` NO lleva sesion a proposito: es la
+     | URL firmada que va dentro del correo, y quien la abre es la
+     | persona que recien se registro, todavia sin token. La firma
+     | temporal es lo que autoriza -- sin ella, cualquiera podria
+     | confirmar el correo de otra persona cambiando el id.
+     |
+     | `/email/verification-notification` SI lleva sesion: es la
+     | persona pidiendo que se le reenvie a si misma.
+     */
+    Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
+        ->middleware('signed')
+        ->name('api.email.verify');
+
+    Route::post('/email/verification-notification', [EmailVerificationController::class, 'resend'])
+        ->middleware('auth:sanctum')
+        ->name('api.email.resend');
+
+    /*
+     | Recuperacion de contrasena. RF-1.3.
+     |
+     | Las dos son publicas y sin sesion: quien se le olvido la
+     | contrasena precisamente no puede iniciar sesion para pedirla.
+     | El limite de reenvios lo pone el broker de Laravel
+     | (`throttle` en config/auth.php).
+     */
+    Route::post('/forgot-password', [PasswordResetController::class, 'sendLink'])
+        ->name('api.forgot-password');
+
+    Route::post('/reset-password', [PasswordResetController::class, 'reset'])
+        ->name('api.reset-password');
 });
 
 /*
