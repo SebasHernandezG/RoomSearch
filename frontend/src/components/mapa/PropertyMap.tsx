@@ -12,12 +12,14 @@
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { formatDistance } from '../../lib/format';
+import { ESPERANDO, haySoporte, mensajeDeError, pedirUbicacion } from '../../lib/ubicacion';
 import type { Property } from '../../types/property';
 import { iconoFantasma, iconoMarcador } from './iconos';
 import './marcadores.css';
+import './mi-ubicacion.css';
 
 /**
  * San Carlos. El mapa arranca aqui, no en el punto (0,0) del Atlantico.
@@ -48,6 +50,43 @@ type Props = {
   className?: string;
 };
 
+/**
+ * RF-3.4 · boton de "usar mi ubicacion".
+ *
+ * El estado vive aqui y no en el padre porque es efimero: aparece y
+ * desaparece con el permiso, y meterlo en el estado del mapa lo
+ * re-renderiza entero en cada pulsacion.
+ *
+ * Tres estados, y siempre hay feedback: pidiendo, con la ubicacion, o
+ * con un error. El criterio de RF-3.4 es "nunca falla en silencio", y
+ * un boton que no cambia de aspecto mientras espera se lee como roto.
+ */
+type EstadoUbicacion =
+  | { fase: 'inactivo' }
+  | { fase: 'esperando' }
+  | { fase: 'listo'; latitud: number; longitud: number; exactitud: number | null }
+  | { fase: 'error'; mensaje: string };
+
+/**
+ * El boton solo se pinta si el navegador puede dar la ubicacion.
+ *
+ * Se comprueba **fuera** del componente, en render: un boton que
+ * aparece y al pulsarlo dice "tu dispositivo no sabe donde estas"
+ * parece un fallo de la plataforma.
+ */
+const PUEDE_UBICAR = haySoporte();
+
+/** El pin donde cae la persona, para distinguirlos de los inmuebles. */
+const ICONO_UBICACION = L.divIcon({
+  html:
+    `<div class="ds-mi-ubicacion" aria-hidden="true">` +
+    `<span class="ds-mi-ubicacion__punto"></span>` +
+    `</div>`,
+  className: 'ds-mi-ubicacion-wrapper',
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+});
+
 export default function PropertyMap({
   propiedades,
   cargando = false,
@@ -64,6 +103,14 @@ export default function PropertyMap({
   const circulo = useRef<L.Circle | null>(null);
   const etiqueta = useRef<L.Marker | null>(null);
   const marcadores = useRef<Map<number, L.Marker>>(new Map());
+  const pinUbicacion = useRef<L.Marker | null>(null);
+
+  /**
+   * RF-3.4. Vive en el componente y no en el padre porque es efimero:
+   * aparece y desaparece con el permiso, y subirlo al estado del mapa
+   * re-renderiza la pantalla entera en cada pulsacion.
+   */
+  const [estadoUbicacion, setEstadoUbicacion] = useState<EstadoUbicacion>({ fase: 'inactivo' });
 
   /*
    * El mapa se esta moviendo por codigo, no por el usuario. El estado
@@ -203,6 +250,66 @@ export default function PropertyMap({
     }
   }, [propiedades, cargando]);
 
+  /*
+   * RF-3.4 · usar mi ubicacion.
+   *
+   * El permiso se pide **solo** al pulsar, nunca al montar. Un permiso
+   * que aparece sin que la persona haya pedido nada se deniega solo, y
+   * queda denegado para siempre: se pierde la funcion para siempre por
+   * haberla pedido demasiado pronto.
+   */
+  const usarMiUbicacion = () => {
+    setEstadoUbicacion({ fase: 'esperando' });
+
+    pedirUbicacion()
+      .then(({ latitud, longitud, exactitud }) => {
+        const instancia = mapa.current;
+
+        setEstadoUbicacion({ fase: 'listo', latitud, longitud, exactitud });
+
+        if (!instancia) return;
+
+        /*
+         * `setView` dispara `moveend`, y el manejador de arriba avisa al
+         * padre con la zona nueva. Deliberado: la persona acaba de
+         * decidir que quiere buscar aqui, asi que la peticion sale sola
+         * y no hay que volver a pulsar "Buscar en esta zona".
+         *
+         * NO se usa `ajustarVista`, que es lo que se usa cuando el
+         * movimiento lo hace el codigo. Marcar esto como ajuste
+         * suprimiria el `moveend` y la busqueda no saldria.
+         */
+        instancia.setView([latitud, longitud], instancia.getZoom(), { animate: false });
+
+        pinUbicacion.current?.remove();
+
+        pinUbicacion.current = L.marker([latitud, longitud], {
+          icon: ICONO_UBICACION,
+          interactive: false,
+          zIndexOffset: 2000,
+          keyboard: false,
+          alt: 'Estás acá',
+        }).addTo(instancia);
+      })
+      .catch((codigo: unknown) => {
+        setEstadoUbicacion({ fase: 'error', mensaje: mensajeDeError(codigo as number) });
+      });
+  };
+
+  /*
+   * El pin de "estoy acá" se quita cuando el mapa se desmonta.
+   *
+   * Con cuerpo de bloque y no con la forma corta `() => () => quitar()`:
+   * `remove()` devuelve el marcador, y un cleanup de `useEffect` tiene
+   * que devolver `void`. Con la forma corta, TypeScript lo rechaza.
+   */
+  useEffect(
+    () => () => {
+      pinUbicacion.current?.remove();
+    },
+    [],
+  );
+
   // Resaltado desde la lista (RF-3.5).
   useEffect(() => {
     for (const [id, marcador] of marcadores.current) {
@@ -297,6 +404,55 @@ export default function PropertyMap({
         >
           Limpiar zona
         </button>
+      )}
+
+      {/*
+        RF-3.4. Abajo a la derecha, donde no estorba al circulo ni al
+        boton de "Buscar en esta zona".
+
+        `PUEDE_UBICAR` se evalua fuera del componente: si el navegador
+        no soporta geolocalizacion, el boton no se pinta. Un boton que
+        aparece y falla se lee como un fallo de la plataforma.
+      */}
+      {PUEDE_UBICAR && (
+        <button
+          type="button"
+          onClick={usarMiUbicacion}
+          disabled={estadoUbicacion.fase === 'esperando'}
+          aria-live="polite"
+          aria-label={
+            estadoUbicacion.fase === 'error' ? estadoUbicacion.mensaje : 'Usar mi ubicación'
+          }
+          title={estadoUbicacion.fase === 'error' ? estadoUbicacion.mensaje : undefined}
+          className="absolute bottom-4 right-3 z-[500] flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-md border border-line bg-paper px-3 text-small font-semibold text-leaf shadow-sm transition-colors duration-200 hover:bg-sand disabled:cursor-progress disabled:opacity-70 motion-reduce:transition-none"
+        >
+          {estadoUbicacion.fase === 'esperando' ? (
+            <span aria-hidden="true">{ESPERANDO}</span>
+          ) : (
+            <>
+              <span aria-hidden="true">◎</span>
+              <span className="hidden sm:inline">Usar mi ubicación</span>
+            </>
+          )}
+        </button>
+      )}
+
+      {/*
+        El error va aparte del boton, en una banda, y no dentro del
+        boton: un mensaje largo dentro de un boton de 44 px lo
+        desborda y empuja el mapa.
+
+        Y es `role="status"`, no `role="alert"`: no interrumpe lo que
+        el lector de pantalla este leyendo, que es lo que corresponde
+        para algo que aparece sin que la persona lo pidiera.
+      */}
+      {estadoUbicacion.fase === 'error' && (
+        <p
+          role="status"
+          className="absolute right-3 bottom-20 z-[500] max-w-[18rem] rounded-md border border-line bg-paper px-3 py-2 text-small text-ink shadow-sm"
+        >
+          {estadoUbicacion.mensaje}
+        </p>
       )}
     </div>
   );
