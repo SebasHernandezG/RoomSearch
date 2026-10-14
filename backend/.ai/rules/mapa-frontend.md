@@ -73,6 +73,83 @@ número que ya viene.
 
 Ver [mysql-geoespacial.md](../../.ai/rules/mysql-geoespacial.md).
 
+## 6 · El permiso se pide al pulsar, nunca al montar
+
+RF-3.4. El botón de "usar mi ubicación" **no pide nada** al cargar la
+página.
+
+No es una preferencia, es la diferencia entre que la función exista o
+no para siempre. Un permiso que aparece sin que la persona haya pedido
+nada se **deniega solo**, y los navegadores lo recuerdan: si la primera
+petición fue inesperada, esa casilla queda bloqueada y volver a pedirlo
+no vuelve a abrir el diálogo.
+
+Por eso `navigator.geolocation` solo se toca dentro del manejador del
+clic, en `frontend/src/lib/ubicacion.ts`.
+
+## 7 · Un boton que va a fallar, no se pinta
+
+`PUEDE_UBICAR` se evalúa **fuera del componente**, al importarlo. Si el
+navegador no expone `geolocation`, el botón no existe.
+
+Un botón que aparece y al pulsarlo dice "tu dispositivo no sabe dónde
+estás" se lee como un fallo de la plataforma. Uno que nunca aparece se
+lee como una función que el navegador no tiene.
+
+## 8 · `setView` a propósito, no `ajustarVista`
+
+Cuando la ubicación llega, el mapa se mueve con `setView`, **no** con
+`ajustarVista()`.
+
+`ajustarVista()` marca el mapa en `ajustesEnCurso` justamente para que
+el `moveend` que provoca **no** dispare una búsqueda — es el guardia
+anti-bucle de la regla 2.
+
+Aquí se quiere justo lo contrario: la persona acaba de decidir buscar
+en su ubicación, así que la petición tiene que salir sola, sin volver a
+pulsar "Buscar en esta zona". Marcarlo como ajuste suprimiría el
+`moveend` y no se buscaría nada.
+
+## 9 · Los tres errores se dicen distinto
+
+Permiso denegado, posición no disponible y timeout llegan todos como un
+`code` numérico. El mensaje es distinto en los tres porque **la acción
+es distinta**, y quien no entiende qué hacer no va a pulsar "reintentar"
+con la misma fe:
+
+| Código | Qué pasó | Qué puede hacer la persona |
+| --- | --- | --- |
+| 1 | El navegador no dio permiso | Cambiarlo en los permisos del sitio |
+| 2 | El dispositivo no sabe dónde está | Mover el mapa a mano |
+| 3 | Tardó demasiado | Reintentar, o escribir el distrito |
+
+Ninguno dice "falló": suena a caída del servidor, y el documento pide
+que la plataforma se sienta confiable. Un código desconocido cae en un
+mensaje útil, porque el navegador puede inventarse códigos nuevos.
+
+## Lo que NO se hace: reverse geocoding
+
+RF-3.4 pide leer el distrito con Nominatim. **No se hizo, a propósito.**
+
+Dos razones, y las dos son serias:
+
+1. **Es enviar las coordenadas de alguien a un tercero**, sin haberle
+   preguntado. La plataforma tiene la regla más estricta del proyecto
+   sobre la privacidad de la ubicación: RF-2.5, que oculta el pin
+   exacto si el arrendador no autoriza. Mandarla a un servicio externo
+   por una etiqueta de texto contradice esa regla.
+
+2. **Nominatim no se puede llamar bien desde el navegador.** Su política
+   de uso exige un `User-Agent` identificable, y desde JavaScript no se
+   puede poner uno. Google llamándolo "quedarse sin servicing".
+
+La solución correcta es hacer el reverse geocoding **desde el backend**,
+donde sí se puede poner el `User-Agent` y se pueden cachear las
+respuestas. Es un endpoint aparte, con su propio límite de peticiones.
+
+Mientras tanto, el plan B ya existe: el buscador por texto (`q`) acepta
+"Ciudad Quesada" y la API lo resuelve sin geocodificar nada.
+
 ---
 
 ## Texto de cara al usuario
@@ -80,6 +157,11 @@ Ver [mysql-geoespacial.md](../../.ai/rules/mysql-geoespacial.md).
 Todo sale de `src/lib/microcopy.ts`. No escribas strings sueltos en los
 componentes. El tono es costarricense, en "vos", sin lenguaje
 corporativo.
+
+La excepción es `src/lib/ubicacion.ts`: los mensajes de error de la
+geolocalizacion viven ahí y no en `microcopy.ts`, porque los tres
+dependen de un `code` numérico y no se pueden escribir como
+constantes sueltas.
 
 ## Hay runner: Vitest
 

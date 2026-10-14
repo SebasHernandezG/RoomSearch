@@ -1,0 +1,62 @@
+/*
+ * El punto de "estoy acá". DS-7.
+ *
+ * No es el icono de los inmuebles: aquellos son DivIcon con el precio y
+ * el tipo dentro, y este tiene que verse distinto a un vistazo. Por eso
+ * es un punto con halo, como el GPS del celular.
+ *
+ * El halo pulsa con `prefers-reduced-motion` respetado, porque el mapa
+ * ya esta lleno de cosas que se mueven.
+ */
+
+.ds-mi-ubicacion-wrapper {
+  background: none;
+  border: none;
+}
+
+.ds-mi-ubicacion {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+}
+
+.ds-mi-ubicacion__punto {
+  position: relative;
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--ds-azul, #1d4ed8);
+  border: 3px solid var(--ds-papel, #ffffff);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 35%);
+}
+
+.ds-mi-ubicacion__punto::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: var(--ds-azul, #1d4ed8);
+  opacity: 0.35;
+  animation: ds-mi-ubicacion-pulso 2s ease-out infinite;
+}
+
+@keyframes ds-mi-ubicacion-pulso {
+  from {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+
+  to {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-mi-ubicacion__punto::after {
+    animation: none;
+    opacity: 0.2;
+  }
+}
