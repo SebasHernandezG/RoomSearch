@@ -17,7 +17,30 @@ return [
     |
     */
 
-    'default' => env('DB_CONNECTION', 'sqlite'),
+    /*
+     | MySQL 8.4, y NO SQLite.
+     |
+     | Antes el fallback era `sqlite`, que venía del esqueleto de
+     | Laravel. Es una trampa silenciosa: si `DB_CONNECTION` no está en
+     | el entorno --un despliegue mal configurado, un `.env` regenerado
+     | a medias-- la aplicación arranca, las migraciones corren, y todo
+     | parece bien hasta la primera búsqueda por radio.
+     |
+     | Y ahí es donde revienta, porque MySQL no está:
+     |
+     |   ERROR 1253: A geometry column can only have a spatial index
+     |
+     | La columna `location` es POINT SRID 4326 y necesita MySQL 8.4.
+     | En SQLite no hay `ST_Distance_Sphere`, ni índices espaciales, ni
+     | columnas geométricas. El mapa abre vacío y ningún error avisa.
+     |
+     | Por eso el default es MySQL: si alguien quiere SQLite para
+     | una prueba rápida, lo escribe explícito y acepta que la
+     | búsqueda por radio no va a funcionar.
+     |
+     | Ver `.ai/rules/mysql-geoespacial.md`.
+     */
+    'default' => env('DB_CONNECTION', 'mysql'),
 
     /*
     |--------------------------------------------------------------------------

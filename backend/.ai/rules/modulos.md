@@ -10,7 +10,8 @@ El backend es un monolito modular con DDD ligero. Los módulos viven en
 | Módulo | Qué contiene |
 | --- | --- |
 | `Properties` | Inmuebles: modelo, enum, consultas, reglas de privacidad, Policy, seeders, pruebas |
-| `Identity` | Usuarios y roles: `User`, `UserRole`, pruebas |
+| `Identity` | Usuarios y roles: `User`, `UserRole`, notificaciones, pruebas |
+| `Platform` | Reglas que no pertenecen a un dominio: configuración. Hoy, solo la base de datos |
 | `Interests` | Contacto y WhatsApp. **Está vacío** |
 
 `Identity` ya tiene su entidad: `User` vive en
