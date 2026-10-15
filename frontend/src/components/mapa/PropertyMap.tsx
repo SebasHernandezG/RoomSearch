@@ -46,7 +46,6 @@ type Props = {
   /** Id de la propiedad resaltada, para RF-3.5. */
   resaltada?: number | null;
   onSeleccionar?: (id: number) => void;
-  onPedirZonaEnVista?: () => void;
   className?: string;
 };
 
@@ -94,7 +93,6 @@ export default function PropertyMap({
   onMoverZona,
   resaltada = null,
   onSeleccionar,
-  onPedirZonaEnVista,
   className = '',
 }: Props) {
   const contenedor = useRef<HTMLDivElement>(null);
@@ -119,8 +117,8 @@ export default function PropertyMap({
 
   // Los callbacks se guardan en refs para no reconstruir el mapa cuando
   // el padre pasa una funcion nueva en cada render.
-  const cb = useRef({ onMoverZona, onSeleccionar, onPedirZonaEnVista });
-  cb.current = { onMoverZona, onSeleccionar, onPedirZonaEnVista };
+  const cb = useRef({ onMoverZona, onSeleccionar });
+  cb.current = { onMoverZona, onSeleccionar };
 
   /*
    * El radio lo elige la persona con el selector, no se deduce del
@@ -272,8 +270,9 @@ export default function PropertyMap({
         /*
          * `setView` dispara `moveend`, y el manejador de arriba avisa al
          * padre con la zona nueva. Deliberado: la persona acaba de
-         * decidir que quiere buscar aqui, asi que la peticion sale sola
-         * y no hay que volver a pulsar "Buscar en esta zona".
+         * decidir que quiere buscar aqui, asi que la peticion sale sola.
+         * Ese es el mismo motivo por el que no hay boton de "buscar":
+         * no existe un estado de "movido y sin buscar".
          *
          * NO se usa `ajustarVista`, que es lo que se usa cuando el
          * movimiento lo hace el codigo. Marcar esto como ajuste
@@ -386,14 +385,27 @@ export default function PropertyMap({
         aria-label="Mapa de inmuebles"
       />
 
-      {zona && onPedirZonaEnVista && (
-        <button
-          type="button"
-          onClick={onPedirZonaEnVista}
-          className="absolute bottom-4 left-1/2 z-[500] flex min-h-11 -translate-x-1/2 items-center rounded-md bg-forest px-4 text-body font-semibold text-paper shadow-lg transition-colors duration-200 hover:bg-leaf motion-reduce:transition-none"
-        >
-          Buscar en esta zona
-        </button>
+      {/*
+        El equivalente accesible de la etiqueta del circulo.
+
+        La de arriba es un `divIcon` de Leaflet: se ve, y es correcta
+        donde esta --en el borde sur, porque en el centro se montaria
+        encima del marcador del punto de referencia, que es justo el
+        caso mas comun. Pero un `divIcon` no lo anuncia nada: es un
+        `div` con HTML dentro de la capa de overlay de Leaflet, sin
+        rol y sin nombre, asi que un lector de pantalla pasa de largo.
+
+        DS-10 lo pide literal: "Anunciar el radio en texto: Mostrando
+        23 inmuebles en 1 km". Esto es lo que lo anuncia.
+
+        Va oculto a la vista con `sr-only` y no duplicado en el centro:
+        dos etiquetas del mismo numero en pantalla serian ruido, y la
+        del centro taparia el marcador.
+      */}
+      {zona && (
+        <p aria-live="polite" className="sr-only">
+          {`Mostrando ${propiedades.length} ${propiedades.length === 1 ? 'inmueble' : 'inmuebles'} en ${formatDistance(zona.metros) ?? ''}.`}
+        </p>
       )}
 
       {zona && (
@@ -408,7 +420,7 @@ export default function PropertyMap({
 
       {/*
         RF-3.4. Abajo a la derecha, donde no estorba al circulo ni al
-        boton de "Buscar en esta zona".
+         * rotulo de resultados.
 
         `PUEDE_UBICAR` se evalua fuera del componente: si el navegador
         no soporta geolocalizacion, el boton no se pinta. Un boton que

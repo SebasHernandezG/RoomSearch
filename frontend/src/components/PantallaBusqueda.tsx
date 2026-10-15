@@ -508,23 +508,6 @@ export default function PantallaBusqueda() {
             resaltada={resaltada}
             onMoverZona={alMoverZona}
             onSeleccionar={(id) => setResaltada(id)}
-            onPedirZonaEnVista={() => {
-              setEspera(null);
-
-              if (!zonaActual.current) {
-                void cargar({});
-                return;
-              }
-
-              const actual = zonaActual.current;
-
-              void cargar({
-                lat: actual.latitud,
-                lng: actual.longitud,
-                radius: actual.metros,
-                sort: 'distance',
-              });
-            }}
           />
         </section>
 
