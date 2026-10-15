@@ -17,15 +17,26 @@ import PantallaBusqueda from './components/PantallaBusqueda';
 import PantallaIngreso from './components/PantallaIngreso';
 import PantallaDetalle from './components/detalle/PantallaDetalle';
 import FormularioPublicar from './components/publicar/FormularioPublicar';
+import { ProveedorAvisos } from './components/ProveedorAvisos';
 import { ProveedorSesion, useSesion } from './components/SesionContexto';
 
 export default function App() {
   return (
-    <ProveedorSesion>
-      <BrowserRouter>
-        <Rutas />
-      </BrowserRouter>
-    </ProveedorSesion>
+    /*
+     * El orden de los dos proveedores importa.
+     *
+     * `ProveedorAvisos` va **encima** de `ProveedorSesion` para que
+     * cualquier pantalla que use `useSesion` pueda avisar sin que
+     * falte el contexto de avisos. Al reves, un `useAvisos` dentro de
+     * un hijo de la sesion lanzaria.
+     */
+    <ProveedorAvisos>
+      <ProveedorSesion>
+        <BrowserRouter>
+          <Rutas />
+        </BrowserRouter>
+      </ProveedorSesion>
+    </ProveedorAvisos>
   );
 }
 

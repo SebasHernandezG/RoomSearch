@@ -23,10 +23,12 @@ import SelectorPin from '../mapa/SelectorPin';
 import { MICROCOPY } from '../../lib/microcopy';
 import { borrarBorrador, guardarBorrador, leerBorrador, tieneContenido } from '../../lib/borrador';
 import { useSesion } from '../SesionContexto';
+import { useAvisos } from '../ProveedorAvisos';
 import { DISTRITOS, DATOS_VACIOS, MONEDAS, PASOS, TIPOS, type DatosPublicacion } from './datos';
 
 export default function FormularioPublicar({ alTerminar }: { alTerminar?: () => void }) {
   const { usuario } = useSesion();
+  const avisar = useAvisos();
 
   const [paso, setPaso] = useState(1);
   const [datos, setDatos] = useState<DatosPublicacion>(DATOS_VACIOS);
@@ -99,8 +101,24 @@ export default function FormularioPublicar({ alTerminar }: { alTerminar?: () => 
               : 'No pudimos publicar. Probá otra vez.'),
         );
 
-        // Los errores son del 422 y bring la pantalla al primer fallo:
-        // sin esto, alguien en el paso 5 no ve el error del paso 1.
+        /*
+         * El 422 **no** emite toast.
+         *
+         * El aviso del formulario ya esta en la pagina, con un
+         * role="alert" y junto a los campos. Un toast ademas seria el
+         * mismo mensaje dos veces en el mismo instante, y con la
+         * pantalla saltando al paso del error seria peor: el aviso sale
+         * abajo y el campo con el problema aparece veinte lineas mas
+         * arriba.
+         */
+        if (respuesta.status !== 422) {
+          avisar.error(
+            'No pudimos enviar tu publicación. Tu borrador quedó guardado: probá otra vez.',
+          );
+        }
+
+        // Los errores del 422 llevan la pantalla al primer fallo: sin
+        // esto, alguien en el paso 5 no ve el error del paso 1.
         if (cuerpo.errors && Object.keys(cuerpo.errors).length > 0) {
           const primero = Object.keys(cuerpo.errors)[0];
 
@@ -115,6 +133,16 @@ export default function FormularioPublicar({ alTerminar }: { alTerminar?: () => 
       // Solo se borra cuando la publicacion **existe**. Si fallo,
       // borrar el borrador seria tirar el trabajo de la persona.
       borrarBorrador();
+
+      /*
+        DS-11: el exito se anuncia y no se deduce.
+       *
+        Sin aviso, el formulario desaparece y la persona no sabe si
+        publico o si la red se comio el envio. Es el caso de uso
+        clasico de un toast de exito.
+      */
+      avisar.exito('Tu publicación quedó en revisión. Te avisamos cuando esté visible.');
+
       alTerminar?.();
     } finally {
       setEnviando(false);
