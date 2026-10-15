@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import Cargando from './Cargando';
 import { useAvisos } from './ProveedorAvisos';
+import { avisoCache, guardarCache, leerCache } from '../lib/cache';
 import ChipsActivos from './filtros/ChipsActivos';
 import PanelFiltros from './filtros/PanelFiltros';
 import PropertyCard from './PropertyCard';
@@ -46,6 +47,7 @@ export default function PantallaBusqueda() {
   const [filtros, setFiltros] = useState<Filtros>({});
   const [hojaAbierta, setHojaAbierta] = useState(false);
   const avisar = useAvisos();
+  const [desdeCache, setDesdeCache] = useState(false);
 
   /*
    * Segundos que faltan para poder volver a pedir, o null si no hay
@@ -98,6 +100,17 @@ export default function PantallaBusqueda() {
         setTotal(respuesta.meta.total);
         setEspera(null);
         setEstado('listo');
+
+        /*
+         * DS-4, estado 5: se guarda lo ultimo que **si** funciono.
+         *
+         * Solo en exito. Guardar tambien un error serviria para
+         * mostrar un fallo guardado como si fuera un resultado, y la
+         * siguiente vez que abrieran la pagina sin red verian un
+         * error viejo como si fuera el de ahora.
+         */
+        guardarCache(respuesta.meta.total, respuesta.data);
+        setDesdeCache(false);
       } catch (error) {
         // 422 es validacion del cliente: el backend ya explico que esta
         // mal, no es un fallo de conexion al que reintentar.
@@ -120,6 +133,31 @@ export default function PantallaBusqueda() {
         if (error instanceof ErrorApi && error.codigo === 429) {
           setEspera(Math.max(0, error.esperarSegundos ?? 60));
           setEstado('listo');
+          return;
+        }
+
+        /*
+         * DS-4, estado 5: sin conexion, la app sigue funcionando.
+         *
+         * Se intenta el cache **antes** de rendirse. La pantalla de
+         * error con un boton de "Reintentar" es el ultimo recurso, no
+         * el primero: si hay algo guardado, se muestra con un aviso
+         * discreto en vez de dejar a la persona frente a un hueco.
+         *
+         * El aviso no es el toast de DS-11 --ese se descarta--, sino
+         * una banda sobre la lista que se queda mientras siga sin
+         * red. "Sin conexion, te mostramos lo ultimo que cargamos"
+         * escrito en un cartel que desaparece a los cuatro segundos
+         * es peor que no escribirlo: uno ya esta leyendo la lista.
+         */
+        const cache = leerCache();
+
+        if (cache !== null) {
+          setPropiedades(cache.data);
+          setTotal(cache.total);
+          setDesdeCache(true);
+          setEstado('listo');
+
           return;
         }
 
@@ -297,6 +335,31 @@ export default function PantallaBusqueda() {
         filtrando y no hay nada" son el mismo mensaje, y el equivocado
         cuesta una publicacion.
       */}
+
+      {/*
+       * La banda de sin conexion.
+       *
+       * Va **encima** de la lista y se queda mientras siga sin red.
+       * Un aviso que desaparece a los cuatro segundos es peor que
+       * ninguno: la persona ya esta leyendo una lista que no va a
+       * cambiar, y a los cinco segundos volveria a creer que esta
+       * al dia.
+       *
+       * `role="status"` y no `alert`: no interrumpe, y no lo es -- la
+       * app funciona.
+       */}
+      {desdeCache && (
+        <div
+          role="status"
+          className="mb-3 flex items-start gap-3 rounded-md border border-line bg-sand px-4 py-3"
+        >
+          <span aria-hidden="true" className="mt-0.5 text-leaf">
+            ·
+          </span>
+          <p className="text-small text-ink">{avisoCache(total)}</p>
+        </div>
+      )}
+
       <div className="mt-3">
         <ChipsActivos filtros={filtros} onCambio={cambiarFiltros} />
       </div>
