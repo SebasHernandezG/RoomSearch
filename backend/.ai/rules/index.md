@@ -29,6 +29,7 @@ ninguna, porque se sigue creyendo.
 | [api.md](api.md) | `routes/api.php`, `app/Http/**` | Convenciones de la API: validación, Resources, rate limiting |
 | [auth.md](auth.md) | `routes/api.php`, `src/Identity/**`, `src/Properties/Models/PropertyPolicy.php`, `app/Http/Middleware/**`, `lang/**` | Tokens, roles, Policies, límites de intentos y los 422 en español |
 | [mapa-frontend.md](mapa-frontend.md) | `frontend/src/components/mapa/**`, `frontend/src/components/PantallaBusqueda.tsx` | Los bucles entre mapa, zona y peticiones, y el tamaño del contenedor en Leaflet |
+| [port-produccion.md](port-produccion.md) | `frontend/src/components/mapa/SelectorPin.tsx`, `config/database.php` | Qué se trajo de la rama `Producción`, qué se descartó y por qué |
 | [vitest.md](vitest.md) | `frontend/**/*.test.ts`, `frontend/vite.config.js` | El runner del frontend, dónde viven las pruebas y qué no se prueba con DOM |
 
 ## Búsqueda rápida

@@ -1,0 +1,46 @@
+/*
+ * El pin que coloca el arrendador. RF-2.4.
+ *
+ * Distinto del pin de "estoy acá" y del marcador de un inmueble: este
+ * es el mas grande de los tres porque es el que hay que acertar, y se
+ * arrastra.
+ */
+
+.ds-pin-wrapper {
+  background: none;
+  border: none;
+}
+
+.ds-pin {
+  width: 32px;
+  height: 40px;
+  color: var(--ds-forest, #2d6a4f);
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 35%));
+  cursor: grab;
+}
+
+.ds-pin:active {
+  cursor: grabbing;
+}
+
+/*
+ * Cuando el pin se esta arrastrando se agranda un poco.
+ *
+ * Es la unica animacion del componente, y va de la escala del icono:
+ * el pin es pequeno en un mapa grande y sin esta senal es dificil
+ * saber que lo estas agarrando.
+ */
+.ds-pin-wrapper.leaflet-marker-draggable .ds-pin {
+  transition: transform 120ms ease-out;
+  transform-origin: 50% 100%;
+}
+
+.ds-pin-wrapper.leaflet-marker-dragging .ds-pin {
+  transform: scale(1.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-pin-wrapper.leaflet-marker-draggable .ds-pin {
+    transition: none;
+  }
+}
