@@ -77,6 +77,52 @@ export const MICROCOPY = {
       accion: 'Iniciar sesión',
     },
     noAutorizado: 'Esta cuenta no puede hacer eso.',
+
+    /*
+     * RF-1.1 y RF-1.3.
+     *
+     * El tono importa en el aviso de confirmacion: la cuenta recien
+     * creada va a quedar en 'pendiente' y el correo va a `pendiente`
+     * de revision. Decir "revisá tu correo" sin decir que hace falta
+     * confirmar deja a alguien esperando a que le publiquen algo.
+     */
+    titulo: 'Roomies San Carlos',
+    subtitulo: 'Vivienda en San Carlos, Costa Rica',
+
+    entrar: {
+      titulo: 'Entrá a tu cuenta',
+      correo: 'Correo',
+      contrasena: 'Contraseña',
+      accion: 'Entrar',
+      noTengo: '¿No tenés cuenta?',
+      crear: 'Creá una',
+      ausente: 'Revisá tu correo',
+    },
+
+    registro: {
+      titulo: 'Creá tu cuenta',
+      nombre: 'Cómo te llamás',
+      correo: 'Correo',
+      contrasena: 'Contraseña',
+      ayudaContrasena: 'Mínimo 8 caracteres. Una frase larga es más segura y más fácil.',
+      accion: 'Crear cuenta',
+      yaTengo: '¿Ya tenés cuenta?',
+      entrar: 'Entrá',
+    },
+
+    creado: {
+      titulo: '¡Cuenta creada!',
+      cuerpo:
+        'Te enviamos un correo para confirmar tu cuenta. Escribilo en el buscador de tu app de correo y volvé acá.',
+      sinConfirmar:
+        'Todavía no confirmaste tu correo. Podés buscar, pero no vas a poder publicar hasta hacerlo.',
+    },
+
+    errores: {
+      contrasenaCorta: 'Poné al menos 8 caracteres.',
+      correoInvalido: 'Revisá el correo: no parece una dirección válida.',
+      generico: 'No pudimos completar eso.',
+    },
   },
 
   general: {
