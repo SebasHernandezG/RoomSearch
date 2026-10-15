@@ -11,11 +11,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import Cargando from './Cargando';
+import ChipsActivos from './filtros/ChipsActivos';
+import PanelFiltros from './filtros/PanelFiltros';
 import PropertyCard from './PropertyCard';
 import { ErrorConexion, SinResultados } from './estadosBusqueda';
 import PropertyMap, { RADIOS, type PuntoZona } from './mapa/PropertyMap';
 import SelectorRadio from './mapa/SelectorRadio';
-import { ErrorApi, listarPropiedades, type Filtros } from '../lib/api';
+import { ErrorApi, listarPropiedades, type Filtros as FiltrosApi } from '../lib/api';
+import {
+  escribirEnUrl,
+  filtrosActivos,
+  filtrosDesdeUrl,
+  limpiar,
+  type Filtros,
+} from '../lib/filtros';
 import { MICROCOPY } from '../lib/microcopy';
 import type { Property } from '../types/property';
 
@@ -33,6 +42,8 @@ export default function PantallaBusqueda() {
   const [zona, setZona] = useState<PuntoZona | null>(ZONA_INICIAL);
   const [resaltada, setResaltada] = useState<number | null>(null);
   const [favoritos, setFavoritos] = useState<number[]>([]);
+  const [filtros, setFiltros] = useState<Filtros>({});
+  const [hojaAbierta, setHojaAbierta] = useState(false);
 
   /*
    * Segundos que faltan para poder volver a pedir, o null si no hay
@@ -57,12 +68,28 @@ export default function PantallaBusqueda() {
    * La distancia la calcula MySQL con ST_Distance_Sphere, nunca el
    * navegador: el issue #16 documenta las tres trampas de MySQL que
    * hacen que esto no se pueda replicar en el cliente sin fallar.
+   *
+   * Los filtros del panel se mezclan **aqui**, no en cada llamada.
+   * Hay cinco sitios que disparan una busqueda --el montaje, el mapa
+   * movido, el radio, el chip y la hoja-- y si cada uno tuviera que
+   * acordarse de los filtros, uno de ellos se olvidaria y el filtro
+   * desapareceria solo al mover el mapa. Es el error mas dificil de
+   * reportar: funciona hasta que alguien arrastra el mapa.
    */
-  const cargar = useCallback(async (filtros: Filtros) => {
+  const filtrosVivos = useRef<Filtros>({});
+
+  useEffect(() => {
+    filtrosVivos.current = filtros;
+  }, [filtros]);
+
+  const cargar = useCallback(async (base: FiltrosApi) => {
     setEstado('cargando');
 
     try {
-      const respuesta = await listarPropiedades(filtros);
+      const respuesta = await listarPropiedades({
+        ...filtrosAAjax(filtrosVivos.current),
+        ...base,
+      });
 
       setPropiedades(respuesta.data);
       setTotal(respuesta.meta.total);
@@ -97,12 +124,27 @@ export default function PantallaBusqueda() {
     }
   }, []);
 
+  /*
+   * El montaje lee los filtros de la URL **antes** de la primera
+   * busqueda.
+   *
+   * Las dos filas estan aqui y no en dos `useEffect` independientes
+   * porque el orden importa: este efecto corre antes que el siguiente
+   * en el mismo commit, y por eso `cargar` ya encuentra los filtros
+   * del enlace en el ref. Separados, un enlace compartido abriria la
+   * pagina con los chips puestos y la lista sin filtrar.
+   */
+  useEffect(() => {
+    filtrosVivos.current = filtrosDesdeUrl(window.location.search);
+    setFiltros(filtrosVivos.current);
+  }, []);
+
   useEffect(() => {
     void cargar({
       lat: ZONA_INICIAL.latitud,
       lng: ZONA_INICIAL.longitud,
       radius: ZONA_INICIAL.metros,
-      sort: 'distance',
+      sort: filtrosVivos.current.sort ?? 'distance',
     });
   }, [cargar]);
 
@@ -183,13 +225,49 @@ export default function PantallaBusqueda() {
         lat: nueva.latitud,
         lng: nueva.longitud,
         radius: nueva.metros,
-        sort: 'distance',
+        sort: filtrosVivos.current.sort ?? 'distance',
       });
     },
     [zona, cargar],
   );
 
+  const cambiarFiltros = useCallback(
+    (nuevos: Filtros) => {
+      setFiltros(nuevos);
+
+      /*
+       * `replace` y no `push`: cada cambio de filtro es una correccion
+       * de la misma busqueda, no un sitio nuevo. Con `push`, el atras
+       * del navegador --que en Android es el gesto de volver-- recorre
+       * cada tecla escrita en el buscador.
+       */
+      const query = escribirEnUrl(nuevos);
+
+      window.history.replaceState(null, '', query ? `?${query}` : window.location.pathname);
+
+      /*
+       * Cada cambio de filtro vuelve a la pagina 1. Quedarse en la
+       * pagina 4 con un filtro nuevo da una lista vacia que parece un
+       * error del servidor.
+       */
+      void cargar({
+        ...filtrosAAjax(nuevos),
+        ...(zona ? { lat: zona.latitud, lng: zona.longitud, radius: zona.metros } : {}),
+      });
+    },
+    [cargar, zona],
+  );
+
   const visibles = propiedades.map((p) => ({ ...p, is_favorite: favoritos.includes(p.id) }));
+
+  /*
+   * Cuantos filtros hay puestos, para el contador del boton flotante.
+   *
+   * Sin esto, alguien en la vista de mapa no tiene forma de saber que
+   * hay un filtro puesto: los chips viven arriba de la lista y en el
+   * mapa no se ven.
+   */
+  const activos = filtrosActivos(filtros).length;
 
   const lista = (
     <div className="h-full overflow-y-auto p-4">
@@ -197,9 +275,20 @@ export default function PantallaBusqueda() {
         <SelectorRadio valor={zona?.metros ?? RADIOS[1]!} onCambio={cambiarRadio} />
       </div>
 
+      {/*
+        Los chips van **encima** de los resultados, no escondidos en la
+        hoja. Con la hoja cerrada el chip es la unica prueba de que el
+        filtro sigue puesto: sin el, "no aparecio nada" y "estoy
+        filtrando y no hay nada" son el mismo mensaje, y el equivocado
+        cuesta una publicacion.
+      */}
+      <div className="mt-3">
+        <ChipsActivos filtros={filtros} onCambio={cambiarFiltros} />
+      </div>
+
       <p className="text-small mt-4 mb-3 text-stone">
         {total === 0
-          ? 'NingÃºn inmueble en esta zona'
+          ? 'Ningún inmueble en esta zona'
           : `${total} ${total === 1 ? 'inmueble' : 'inmuebles'} en esta zona`}
       </p>
 
@@ -280,7 +369,7 @@ export default function PantallaBusqueda() {
       {/* Pestanas de movil: 56 px, el pulgar llega. */}
       <div
         role="tablist"
-        aria-label="Vista de bÃºsqueda"
+        aria-label="Vista de búsqueda"
         className="flex shrink-0 border-b border-line bg-paper lg:hidden"
       >
         {(
@@ -304,6 +393,26 @@ export default function PantallaBusqueda() {
             {etiqueta}
           </button>
         ))}
+      </div>
+
+      {/*
+        La columna de escritorio, como primer hijo de la cuadricula.
+
+        Va **dentro** y no fija sobre la pantalla a proposito: si
+        flotara, el mapa --que recalcula su tamano al redimensionar
+        Leaflet-- no se enteraria de que le quitaron 280 px de ancho
+        y se dibujaria debajo de la columna.
+      */}
+      <div className="hidden md:flex md:min-h-0">
+        <PanelFiltros
+          variante="columna"
+          filtros={filtros}
+          onCambio={cambiarFiltros}
+          abierto={false}
+          onCerrar={() => undefined}
+          total={total}
+          cargando={estado === 'cargando'}
+        />
       </div>
 
       <div className="min-h-0 flex-1 lg:grid lg:grid-cols-[55fr_45fr]">
@@ -350,6 +459,45 @@ export default function PantallaBusqueda() {
           {lista}
         </section>
       </div>
+
+      {/*
+        El boton flotante de movil, con el contador de activos.
+
+        El contador va adentro y no solo en los chips: con la hoja
+        cerrada los chips estan arriba de la lista y en la vista de
+        mapa no se ven. Sin el numero, alguien en el mapa no tiene
+        forma de saber que hay un filtro puesto.
+      */}
+      <button
+        type="button"
+        onClick={() => setHojaAbierta(true)}
+        aria-haspopup="dialog"
+        aria-expanded={hojaAbierta}
+        className="fixed bottom-5 left-4 z-30 inline-flex min-h-11 items-center gap-2 rounded-full bg-forest px-5 text-body font-semibold text-paper shadow-lg transition-colors duration-200 hover:bg-leaf motion-reduce:transition-none md:hidden"
+      >
+        Filtros
+        {activos > 0 && (
+          <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-paper px-1.5 text-small font-bold text-forest">
+            {activos}
+          </span>
+        )}
+      </button>
+
+      {/*
+        La hoja de movil. Se monta siempre para que la transicion de
+        entrada y salida se vea; `pointer-events-none` y el
+        desplazamiento la dejan fuera de la pantalla cuando esta
+        cerrada.
+      */}
+      <PanelFiltros
+        variante="hoja"
+        filtros={filtros}
+        onCambio={cambiarFiltros}
+        abierto={hojaAbierta}
+        onCerrar={() => setHojaAbierta(false)}
+        total={total}
+        cargando={estado === 'cargando'}
+      />
     </div>
   );
 }
@@ -377,4 +525,18 @@ export function sonLaMismaZona(a: PuntoZona, b: PuntoZona): boolean {
     metros(Math.abs(a.latitud - b.latitud)) < 50 &&
     metros(Math.abs(a.longitud - b.longitud)) < 50
   );
+}
+
+/**
+ * Los filtros del panel en la forma que espera la API.
+ *
+ * `currency` es el unico campo que no viaja. El backend deducela del
+ * monto con su propia tabla de umbrales, asi que mandarla seria tirar
+ * el valor a la basura; se usa solo para pintar los chips en la
+ * moneda correcta.
+ */
+export function filtrosAAjax(filtros: Filtros): FiltrosApi {
+  const { currency: _currency, ...resto } = limpiar(filtros);
+
+  return resto;
 }
