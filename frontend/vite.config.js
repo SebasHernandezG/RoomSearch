@@ -16,10 +16,26 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}'],
 
     /*
+     * Los .tsx van con la prueba. React necesita el plugin para
+     * transformarlos, y sin esto ccesibilidad.test.tsx falla al
+     * importar el componente que dice estar probando.
+     */
+
+    /*
      * jsdom, no node puro: varias de las funciones tocadas leen
      * `window`. Y leaflet necesita un DOM con medidas.
      */
     environment: 'jsdom',
+
+    /*
+     * Matchers de `testing-library` y limpieza del DOM entre pruebas.
+     *
+     * `setupFiles` y no imports sueltos en cada archivo: `toBeInTheDocument`
+     * no existe en Vitest, y una prueba que lo use sin el import no
+     * falla en la asercion --falla como "is not a function", que no
+     * seÃ±ala el archivo.
+     */
+    setupFiles: ['./src/test/setup.ts'],
 
     /*
      * Sin esto, un `expect` mal escrito o sin usar pasa en verde:

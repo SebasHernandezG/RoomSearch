@@ -92,6 +92,8 @@ export default function PantallaIngreso({ modo: inicial }: { modo: Modo }) {
    * aqui deja una sola forma de leer el texto y hace imposible el error
    * de usar una clave del modo contrario.
    */
+  const idTitulo = useId();
+
   const copy = {
     titulo: modo === 'entrar' ? MICROCOPY.sesion.entrar.titulo : MICROCOPY.sesion.registro.titulo,
     accion: modo === 'entrar' ? MICROCOPY.sesion.entrar.accion : MICROCOPY.sesion.registro.accion,
@@ -141,11 +143,22 @@ export default function PantallaIngreso({ modo: inicial }: { modo: Modo }) {
         </section>
       ) : (
         <form
+          /*
+           * El nombre accesible viene del titulo.
+           *
+           * Sin `aria-labelledby`, el `<form>` no expone rol `form` y
+           * desaparece de la lista de formularios del lector de
+           * pantalla: en una pagina con el de acceso y el de
+           * publicacion no hay forma de saltar de uno al otro.
+           */
+          aria-labelledby={idTitulo}
           onSubmit={enviar}
           noValidate
           className="flex flex-col gap-4 rounded-lg border border-line bg-white p-6 shadow-sm"
         >
-          <h2 className="text-h2">{copy.titulo}</h2>
+          <h2 id={idTitulo} className="text-h2">
+            {copy.titulo}
+          </h2>
 
           {/*
             `role="alert"` y no `aria-live`: este resumen aparece al
@@ -155,7 +168,7 @@ export default function PantallaIngreso({ modo: inicial }: { modo: Modo }) {
           {general && (
             <div
               role="alert"
-              className="rounded-md border border-clay bg-clay/10 px-3 py-2 text-small text-ink"
+              className="rounded-md border border-alert bg-clay/10 px-3 py-2 text-small text-ink"
             >
               {general}
             </div>
@@ -281,7 +294,7 @@ function Campo({
         }
         onChange={(evento) => onChange(evento.target.value)}
         className={`min-h-11 rounded-md border bg-paper px-3 text-body text-ink transition-colors duration-200 ${
-          error ? 'border-clay' : 'border-line'
+          error ? 'border-alert' : 'border-edge'
         }`}
       />
 

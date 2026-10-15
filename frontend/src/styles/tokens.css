@@ -22,13 +22,46 @@
   --color-sun: #f4a261; /* warm accent, price highlight */
   --color-clay: #e76f51; /* alert, error */
 
+  /*
+   * Darker clay, for the 3:1 that WCAG 1.4.11 demands of a UI
+   * boundary. `clay` itself gives 2.99:1 against paper -- literally
+   * three hundredths short -- so a 1px error border in `clay` is
+   * invisible for anyone with low vision, and that border is the only
+   * non-text signal on the error box.
+   *
+   * Kept in the same burnt-orange family as `clay` on purpose:
+   * darkening `clay` itself would change the brand, and using `ink`
+   * for an alert would stop reading as an alert.
+   */
+  --color-alert: #c14a28; /* borders of error states */
+
+  /*
+   * The border of a form field, for the same 3:1.
+   *
+   * `line` is 1.25:1 and is a *decorative* hairline -- WCAG does not
+   * ask 3:1 of a separator. An input border is different: it is the
+   * only thing that says where the field is, and with `line` a field
+   * with no content looks like empty paper.
+   */
+  --color-edge: #7d8a80; /* borders of inputs and selects */
+
   /* Surfaces */
   --color-paper: #fdfbf7; /* main background */
   --color-sand: #f4ede2; /* alternating card background */
 
   /* Text */
   --color-ink: #1c2b24; /* primary text */
-  --color-stone: #6b7b72; /* secondary text */
+
+  /*
+   * Secondary text. Darkened from #6b7b72 to pass AA.
+   *
+   * `#6b7b72` gives 4.32:1 on paper and 3.84:1 on sand -- under the
+   * 4.5:1 that WCAG AA demands for normal text, and `stone` is the
+   * color of every subtitle, counter and helper line in the product.
+   * `#5a6a61` gives 5.54:1 on paper and 4.92:1 on sand, keeping the
+   * same green-grey family. `contraste.test.ts` fixes both numbers.
+   */
+  --color-stone: #5a6a61; /* secondary text */
 
   /* Borders */
   --color-line: #e8e2d6; /* hairlines on flat surfaces */
