@@ -15,6 +15,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import PantallaBusqueda from './components/PantallaBusqueda';
 import PantallaIngreso from './components/PantallaIngreso';
+import PantallaDetalle from './components/detalle/PantallaDetalle';
 import FormularioPublicar from './components/publicar/FormularioPublicar';
 import { ProveedorSesion, useSesion } from './components/SesionContexto';
 
@@ -49,6 +50,14 @@ function Rutas() {
       <Route path="/entrar" element={<PantallaIngreso modo="entrar" />} />
       <Route path="/crear-cuenta" element={<PantallaIngreso modo="registro" />} />
       <Route path="/publicar" element={<FormularioPublicar />} />
+
+      {/*
+        El `slug` del distrito se acepta pero no se usa.
+        `PropertyCard` ya enlaza a `/inmuebles/ciudad-quesada/12`: el
+        distrito va en la ruta porque un enlace se lee mejor asi, y
+        porque ignorarlo no rompe los enlaces que ya estaban escritos.
+      */}
+      <Route path="/inmuebles/:slug/:id" element={<PantallaDetalle />} />
 
       {/*
         `*` y no una ruta 404: cualquier ruta desconocida vuelve a la
