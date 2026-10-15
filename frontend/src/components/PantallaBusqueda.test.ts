@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { sonLaMismaZona } from './PantallaBusqueda';
+import { filtrosAAjax, sonLaMismaZona } from './PantallaBusqueda';
 import type { PuntoZona } from './mapa/PropertyMap';
 
 /**
@@ -149,5 +149,50 @@ describe('sonLaMismaZona', () => {
     for (const metros of radios) {
       expect(sonLaMismaZona(CENTRO, { ...CENTRO, metros })).toBe(metros === CENTRO.metros);
     }
+  });
+});
+
+describe('filtrosAAjax', () => {
+  /**
+   * La moneda no se manda.
+   *
+   * El backend deduce la moneda del monto con su propia tabla de
+   * umbrales, asi que mandarla seria tirar el valor a la basura --
+   * y si en algun momento dejara de deducirla, el filtro empezaria a
+   * mentir en silencio. Aqui solo se usa para pintar los chips.
+   */
+  it('quita la moneda', () => {
+    expect(filtrosAAjax({ type: 'casa', currency: 'USD' })).toEqual({ type: 'casa' });
+  });
+
+  /**
+   * `false` en un booleano es "tiene parqueo" para la API, no "no
+   * tiene". Mandarlo cambia los resultados sin que nadie lo pidio.
+   */
+  it('no manda false en los booleanos', () => {
+    expect(filtrosAAjax({ parking: false, furnished: false })).toEqual({});
+  });
+
+  it('manda lo que si tiene valor', () => {
+    expect(
+      filtrosAAjax({ max_rent: 350000, bedrooms: 2, parking: true, sort: 'price_asc' }),
+    ).toEqual({ max_rent: 350000, bedrooms: 2, parking: true, sort: 'price_asc' });
+  });
+
+  it('respeta el cero en el precio', () => {
+    expect(filtrosAAjax({ max_rent: 0 }).max_rent).toBe(0);
+  });
+
+  /**
+   * La zona no se manda desde aqui: la agrega `cargar`, que es quien
+   * sabe donde esta el mapa. Si `filtrosAAjax` la incluyera, un
+   * cambio de filtro reiniciaria la busqueda al centro de San Carlos.
+   */
+  it('no manda la zona', () => {
+    const enviado = filtrosAAjax({ type: 'casa' });
+
+    expect(enviado).not.toHaveProperty('lat');
+    expect(enviado).not.toHaveProperty('lng');
+    expect(enviado).not.toHaveProperty('radius');
   });
 });
