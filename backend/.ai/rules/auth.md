@@ -302,6 +302,52 @@ para decidir y `availableIn` para el mensaje, con `max(., 1)`.
 
 ---
 
+## Publicar exige el correo confirmado
+
+RF-1.3. `PropertyPolicy::create` exige `isLandlord()` **y**
+`hasVerifiedEmail()`.
+
+El rol ya no es garantía de nada: cualquiera puede escribirse con el
+correo que quiera y pasar de inquilino a arrendador es una fila en la
+base. Lo que separa una cuenta de verdad de una inventada es que pueda
+recibir un correo.
+
+### La puerta va en la Policy, no en el middleware `verified`
+
+**No hay `->middleware('verified')` en `POST /api/properties`, y no debe
+haberlo.**
+
+Si la puerta fuera el middleware, quitarla de la ruta abriría la API en
+silencio y las pruebas seguirían en verde: `authorize()` no encuentra
+nada que lo niegue y deja pasar. Es el mismo fallo que una Policy sin
+registrar en `Gate`.
+
+`PublishPropertyFlowTest::la_comprobacion_no_depende_del_middleware_verified`
+afirma que el middleware **no** está en la ruta, y las pruebas del 403
+afirman que la Policy **sí** está.
+
+### Editar y gestionar NO lo exigen
+
+`update`, `delete` y `cambiarEstado` no piden correo confirmado.
+
+Si pudo crearla, ya lo tenía confirmado, y la verificación no se
+revierte. Pedirla otra vez solo dejaría fuera a alguien cuyo correo
+quedó sin confirmar por un cambio de dirección.
+
+### El factory crea cuentas ya verificadas
+
+`UserFactory` trae `email_verified_at => now()`. Las pruebas que usan
+`landlord()` sin `unverified()` están probando el camino permiso.
+
+Para el camino sin confirmar hay que pedir `->unverified()`
+explícitamente, o el test pasa sin comprobar nada.
+
+### El flujo extremo a extremo incluye la verificación
+
+`PublishPropertyFlowTest::una_persona_publica_y_el_inmueble_aparece_en_el_mapa`
+registra, confirma el correo, publica y un admin aprueba. Ese paso no
+estaba antes de RF-1.3, y sin él la prueba falla con un 403.
+
 ## Tests: el guard se cachea entre peticiones
 
 En pruebas todas las peticiones comparten la misma instancia de la
@@ -373,11 +419,5 @@ editar, no solo lo que cambió.
 
 - **RF-1.2**: Google, en v2.
 - **RF-1.5**: perfil de arrendador con teléfono y foto.
-- **"Las cuentas sin verificar no pueden publicar"** (criterio de
-  RF-1.3). El middleware `verified` ya funciona y el modelo ya lo
-  implementa, pero **no está aplicado a `POST /api/properties`**: esa
-  ruta la crea RF-2.1. Va en la Policy, no solo en el middleware —un
-  middleware bien escrito y aplicado a la ruta equivocada deja pasar a
-  cualquiera— y hay una prueba que lo fija.
 - **CSP (RNF-04)**: mientras no exista, el token en `localStorage` es
   un riesgo asumido, no resuelto.

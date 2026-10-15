@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Properties\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\URL;
 use Modules\Identity\Enums\UserRole;
 use Modules\Identity\Models\User;
 use Modules\Properties\Enums\PropertyStatus;
@@ -85,6 +86,27 @@ class PublishPropertyFlowTest extends TestCase
         $arrendadora->update(['role' => UserRole::Landlord]);
 
         $this->app['auth']->forgetGuards();
+
+        // 3.5. Y confirma su correo.
+        //
+        //     Este paso no estaba antes de RF-1.3 y la prueba fallaba sin
+        //     el: la cuenta nace sin verificar y publicar exige
+        //     verificar. Es exactamente la puerta que se acaba de anadir,
+        //     vista desde el otro lado: si alguien la aflojara, esta
+        //     prueba sigue pasando --por eso hay otras que affirmative
+        //     el 403-- pero si se endureciera de mas, esta lo canta.
+        $this->getJson(
+            URL::temporarySignedRoute(
+                'api.email.verify',
+                now()->addHour(),
+                [
+                    'id' => $arrendadora->id,
+                    'hash' => sha1($arrendadora->getEmailForVerification()),
+                ],
+            ),
+        )->assertOk();
+
+        $this->assertTrue($arrendadora->fresh()->hasVerifiedEmail());
 
         // 4. Publica. Nace pendiente de moderacion, no visible.
         //
@@ -177,6 +199,113 @@ class PublishPropertyFlowTest extends TestCase
         $this->actingAs(User::factory()->landlord()->create(), 'sanctum')
             ->postJson('/api/properties', $this->datosValidos())
             ->assertCreated();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Correo confirmado. RF-1.3
+    |--------------------------------------------------------------------------
+    |
+    | El rol ya no es garantia de nada: cualquier persona puede
+    | escribirse con el correo que quiera, y pasar de inquilino a
+    | arrendador es una fila en la base. Lo que separa a una cuenta de
+    | verdad de una inventada es que pueda recibir un correo.
+    |
+    | El factory crea las cuentas YA verificadas, asi que estas pruebas
+    | que usan `landlord()` sin `unverified()` estan probando el camino
+    | permiso.
+    */
+
+    #[Test]
+    public function un_arrendador_sin_confirmar_no_publica(): void
+    {
+        $this->actingAs(User::factory()->landlord()->unverified()->create(), 'sanctum')
+            ->postJson('/api/properties', $this->datosValidos())
+            ->assertForbidden();
+
+        $this->assertDatabaseCount('properties', 0);
+    }
+
+    /**
+     * Tampoco el admin escapa. `admin` puede publicar, y un admin sin
+     * confirmar es tan inventado como un arrendador sin confirmar.
+     */
+    #[Test]
+    public function un_admin_sin_confirmar_tampoco_publica(): void
+    {
+        $this->actingAs(User::factory()->admin()->unverified()->create(), 'sanctum')
+            ->postJson('/api/properties', $this->datosValidos())
+            ->assertForbidden();
+
+        $this->assertDatabaseCount('properties', 0);
+    }
+
+    /**
+     * Y al confirmar, ya puede. El mismo camino, no uno aparte.
+     */
+    #[Test]
+    public function al_confirmar_el_correo_ya_puede_publicar(): void
+    {
+        $usuario = User::factory()->landlord()->unverified()->create();
+
+        $this->actingAs($usuario, 'sanctum')
+            ->postJson('/api/properties', $this->datosValidos())
+            ->assertForbidden();
+
+        // `markEmailAsVerified()` muta ESTA instancia, que es la misma
+        // que tiene el guard de `actingAs`. Por eso no hace falta
+        // `forgetGuards()`, y si se llamara se perderia el actingAs y
+        // la peticion siguiente daria 401 en vez de 201.
+        $usuario->markEmailAsVerified();
+
+        $this->postJson('/api/properties', $this->datosValidos())->assertCreated();
+    }
+
+    /**
+     * La puerta esta en la **Policy**, no en el middleware `verified`.
+     *
+     * No hay ningun middleware `verified` en `POST /api/properties`: si
+     * lo hubiera y alguien lo sacara de la ruta, estas pruebas seguirian
+     * pasando. Lo que las hace fallar es quitar la condicion de
+     * `PropertyPolicy::create`.
+     */
+    #[Test]
+    public function la_comprobacion_no_depende_del_middleware_verified(): void
+    {
+        $ruta = collect($this->app['router']->getRoutes()->getRoutes())
+            ->first(fn ($ruta) => $ruta->uri() === 'api/properties' && in_array('POST', $ruta->methods()));
+
+        $this->assertNotNull($ruta, 'La ruta de publicar deberia existir.');
+
+        $this->assertNotContains(
+            'verified',
+            $ruta->gatherMiddleware(),
+            'Si la puerta fuera el middleware, quitarla de la ruta abriria la API en silencio.',
+        );
+    }
+
+    /**
+     * Editar y gestionar NO exigen correo confirmado.
+     *
+     * Si pudo crearla, ya lo tenia confirmado, y la verificacion no se
+     * revierte: volver a pedirla solo dejaria fuera a alguien cuyo
+     * correo quedo sin confirmar por un cambio de direccion.
+     */
+    #[Test]
+    public function un_dueno_sin_confirmar_puede_seguir_gestionando_lo_suyo(): void
+    {
+        $dueno = User::factory()->landlord()->create();
+        $propiedad = Property::factory()->de($dueno)->activa()->create();
+
+        $dueno->forceFill(['email_verified_at' => null])->save();
+
+        $this->actingAs($dueno, 'sanctum')
+            ->putJson('/api/properties/'.$propiedad->id, $this->datosValidos())
+            ->assertOk();
+
+        $this->actingAs($dueno, 'sanctum')
+            ->postJson('/api/properties/'.$propiedad->id.'/pause')
+            ->assertOk();
     }
 
     /**
