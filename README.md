@@ -39,6 +39,42 @@ La regla que decide qué va en cada lado: **las reglas de negocio van
 en el módulo, el transporte HTTP va en `app/`**. Está explicado con
 ejemplos en [`backend/.ai/rules/modulos.md`](backend/.ai/rules/modulos.md).
 
+## Ramas
+
+**`main` es la única rama activa.** Todo entra por pull request.
+
+```
+main
+ └── feature/mi-cambio      <- se abre contra main, se borra al fusionar
+```
+
+Tres reglas, y las tres ha servido para algo:
+
+1. **Nadie trabaja en `main`.** Ni para un fix de una línea.
+2. **Una rama por PR**, y el PR se borra al fusionarse. Las ramas
+   fusionadas no se quedan "por si acaso": si el código ya está en
+   `main`, la rama es ruido, y el ruido entrena a la gente a ignorar
+   las ramas.
+3. **La rama se borra después de fusionar**, no antes. Una rama
+   borrada con trabajo sin fusionar es trabajo perdido, y GitHub avisa
+   30 días, que es tiempo de sobra para olvidarlo.
+
+### Las ramas `Jeff`, `Nigel`, `Yeri` y `Producción`
+
+`Jeff`, `Nigel` y `Yeri` **se borraron**. No eran punteros muertos:
+formaban la línea vieja del repositorio, la de Laravel + Breeze +
+SQLite, de la que salió `Producción`. Su contenido sobrevive ahí, así
+que borrarlas no perdió nada.
+
+`archivo/produccion` es la rama que **se conserva**. Contiene una
+aplicación completa y distinta: Laravel con Breeze y sesiones por un
+lado, un servidor Elysia con SQLite y un cliente React por otro. No se
+fusionó nunca con `main` y no se va a fusionar.
+
+Qué se trajo de ella y qué se descartó está escrito, con razones, en
+[`backend/.ai/rules/port-produccion.md`](backend/.ai/rules/port-produccion.md).
+Léelo **antes** de reabrirla.
+
 ## Reglas del proyecto
 
 `backend/.ai/rules/` es la memoria del proyecto: decisiones ya
