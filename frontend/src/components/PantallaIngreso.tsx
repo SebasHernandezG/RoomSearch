@@ -17,6 +17,7 @@ import type { FormEvent } from 'react';
 import { MICROCOPY } from '../lib/microcopy';
 import { erroresPorCampo } from '../lib/sesion';
 import { useSesion } from './SesionContexto';
+import Logo from './Logo';
 
 type Modo = 'entrar' | 'registro';
 
@@ -110,7 +111,11 @@ export default function PantallaIngreso({ modo: inicial }: { modo: Modo }) {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-10">
       <header className="mb-8 text-center">
-        <h1 className="text-h1">{MICROCOPY.sesion.titulo}</h1>
+        /* * El logo va decorativo y el `h1` queda oculto a la vista. * * El nombre ya esta en texto
+        en el `h1`, y anunciarlo otra * vez haria que un lector de pantalla repita "Roomies San *
+        Carlos" dos veces seguidas en cada pagina. Ver `Logo.tsx`. */
+        <Logo conNombre className="justify-center" />
+        <h1 className="sr-only">{MICROCOPY.sesion.titulo}</h1>
         <p className="text-body mt-1 text-stone">{MICROCOPY.sesion.subtitulo}</p>
       </header>
 

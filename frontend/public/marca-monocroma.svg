@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Roomies San Carlos">
+  <!--
+    La version monocroma del favicon.
+
+    Un unico color y sin detalles que dependan del fondo. Va en
+    `currentColor` para que el navegador lo pinte del color del texto
+    del sistema --los iconos adaptativos de Android lo hacen asi-- y
+    por eso el resto de la marca si lleva los hex fijos.
+
+    Sin las dos ventanas: a 16 px se convierten en un punto gris y la
+    casa deja de leerse como casa. La version monocroma es el logo
+    reducido, no el logo con los colores quitados.
+  -->
+  <path fill="currentColor" d="M16 3.2 3.2 13.6a1.6 1.6 0 0 0 1 3V27a1.8 1.8 0 0 0 1.8 1.8h20A1.8 1.8 0 0 0 27.8 27v-10.4a1.6 1.6 0 0 0 1-3L16 3.2Zm-2.4 21.6a2.4 2.4 0 0 1-2.4-2.4v-5a2.4 2.4 0 0 1 4.8 0v5a2.4 2.4 0 0 1-2.4 2.4Zm9.6 0a2.4 2.4 0 0 1-2.4-2.4v-5a2.4 2.4 0 0 1 4.8 0v5a2.4 2.4 0 0 1-2.4 2.4Z"/>
+</svg>
