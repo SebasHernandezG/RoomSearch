@@ -15,6 +15,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import PantallaBusqueda from './components/PantallaBusqueda';
 import PantallaIngreso from './components/PantallaIngreso';
+import FormularioPublicar from './components/publicar/FormularioPublicar';
 import { ProveedorSesion, useSesion } from './components/SesionContexto';
 
 export default function App() {
@@ -47,6 +48,7 @@ function Rutas() {
       <Route path="/" element={<PantallaBusqueda />} />
       <Route path="/entrar" element={<PantallaIngreso modo="entrar" />} />
       <Route path="/crear-cuenta" element={<PantallaIngreso modo="registro" />} />
+      <Route path="/publicar" element={<FormularioPublicar />} />
 
       {/*
         `*` y no una ruta 404: cualquier ruta desconocida vuelve a la
