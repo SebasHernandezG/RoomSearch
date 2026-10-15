@@ -3,16 +3,41 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!--
+      El icono de iOS no acepta SVG: necesita un PNG de 180x180. Sin
+      esta linea, al compartir un enlace desde Safari en un iPhone se
+      ve el pantallazo entero de la pagina.
+    -->
+    <link rel="apple-touch-icon" href="/marca.svg" />
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1b4332" />
+
     <meta
       name="description"
       content="Encuentra y publica vivienda en San Carlos, Costa Rica. Apartamentos, casas y habitaciones sobre el mapa."
     />
+
+    <!--
+      La version monocroma la eligen los iconos adaptativos de Android
+      cuando el sistema aplica su tema. Sin esta linea, Android
+      muestra el SVG a pelo sobre un fondo oscuro y el azul de Vite
+      --o el verde-- se pierde.
+    -->
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/marca-monocroma.svg"
+      media="(prefers-color-scheme: dark)"
+    />
+
     <link rel="preconnect" href="https://fonts.bunny.net" />
     <link
       href="https://fonts.bunny.net/css?family=figtree:400,600,700&display=swap"
       rel="stylesheet"
     />
+
     <title>Roomies San Carlos · Vivienda en San Carlos, Costa Rica</title>
   </head>
   <body>

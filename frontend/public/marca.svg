@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Roomies San Carlos">
+  <!--
+    Roomies San Carlos · el simbolo.
+
+    Una casa con dos ventanas y una hoja. Se lee a 16 px --que es como
+    se ve un favicon-- porque no hay ningun detalle por debajo de 2
+    unidades de ancho: las ventanas son cuadrados de 5x5 y la hoja
+    tiene una sola curva.
+
+    El color va fijo en `forest` (#1b4332) y no en una clase de
+    Tailwind: este archivo no pasa por Vite como modulo, y ademas un
+    favicon tiene que verse bien sobre cualquier fondo del navegador.
+  -->
+  <path fill="#1b4332" d="M16 3.2 3.2 13.6a1.6 1.6 0 0 0 1 3V27a1.8 1.8 0 0 0 1.8 1.8h20A1.8 1.8 0 0 0 27.8 27v-10.4a1.6 1.6 0 0 0 1-3L16 3.2Z"/>
+  <!-- Las dos ventanas: una por vecino. -->
+  <rect fill="#fdfbf7" x="9" y="16" width="5.5" height="5.5" rx="1"/>
+  <rect fill="#fdfbf7" x="17.5" y="16" width="5.5" height="5.5" rx="1"/>
+  <!-- La hoja: San Carlos. -->
+  <path fill="#74c69d" d="M16 6.6c-3.4 1.2-5.2 3.5-5.2 6.2 0 1 .3 1.9.8 2.7.4-2.3 1.9-4.4 4.6-6-2.1 1.7-3.4 3.8-3.8 6.3a7.7 7.7 0 0 0 2 .4c3.1 0 5.5-2.1 5.5-5.2 0-1.6-.6-3-1.7-4.2a18 18 0 0 0-2.2-.2Z"/>
+</svg>
