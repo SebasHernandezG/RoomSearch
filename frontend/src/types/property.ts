@@ -22,6 +22,10 @@ export interface PropertyImage {
 export interface Property {
   id: number;
   title: string;
+
+  /** RF-2.2. Puede venir `null`: la descripcion es opcional. */
+  description: string | null;
+
   district: string | null;
   neighborhood: string | null;
   type: PropertyType;
@@ -34,6 +38,26 @@ export interface Property {
   furnished: boolean;
   pets_allowed: boolean;
   status: PropertyStatus;
+
+  /** RF-2.4: servicios incluidos en el alquiler. */
+  includes_water: boolean;
+  includes_electricity: boolean;
+  includes_internet: boolean;
+
+  /** RF-2.6: desde cuando se puede entrar. `null` = "ya". */
+  available_from: string | null;
+
+  /** RF-2.2: reglas de la casa, texto libre. */
+  rules: string | null;
+
+  /**
+   * RF-2.4: la referencia escrita por el arrendador.
+   *
+   * Es lo que se ve cuando no se muestra la ubicacion exacta, asi
+   * que es obligatoria en el backend aunque `latitude` sea `null` en
+   * un borrador.
+   */
+  address_reference: string | null;
 
   /** RF-2.4: el pin lo elige el arrendador. Puede faltar en un borrador. */
   latitude: number | null;
@@ -55,4 +79,6 @@ export interface Property {
   distance_meters?: number | null;
 
   images: PropertyImage[];
+
+  created_at?: string | null;
 }
