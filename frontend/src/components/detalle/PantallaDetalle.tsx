@@ -26,6 +26,7 @@ import Cargando from '../Cargando';
 import { ErrorConexion } from '../estadosBusqueda';
 import Estado, { AccionPrimaria } from '../Estado';
 import MiniMapa from '../mapa/MiniMapa';
+import { useAvisos } from '../ProveedorAvisos';
 import { obtenerPropiedad } from '../../lib/api';
 import { formatPrice } from '../../lib/format';
 import {
@@ -48,6 +49,7 @@ export default function PantallaDetalle() {
 
   const [estado, setEstado] = useState<'cargando' | 'listo' | 'error' | 'no-existe'>('cargando');
   const [inmueble, setInmueble] = useState<Property | null>(null);
+  const avisar = useAvisos();
 
   const numero = Number(id);
 
@@ -121,6 +123,30 @@ export default function PantallaDetalle() {
   const aviso = cintillo(inmueble.status);
   const fotos = imagenes(inmueble);
   const conWhatsApp = puedeWhatsApp(inmueble);
+
+  /*
+    "Me interesa" todavia no tiene a quien avisar.
+
+    La API no tiene endpoint de contacto ni de favoritos: `routes/api.php`
+    llega hasta moderacion y no hay nada mas. Poner un boton que
+    "envia" a ninguna parte seria peor que no ponerlo: alguien
+    escribiria al arrendador al dia siguiente esperando respuesta y
+    no sabria a que se debe.
+
+    Asi que el boton dice la verdad en el momento en que se toca, con
+    un aviso que **no** se descarta solo, y el estado queda a la vista
+    para el resto de la sesion. Cuando exista el endpoint, se cambia
+    la funcion de este manejador y nada mas.
+  */
+  const [interesado, setInteresado] = useState(false);
+
+  function alInteresar() {
+    setInteresado(true);
+
+    avisar.info(
+      'Te anotamos el interés, pero todavía no podemos avisarle al arrendador: el contacto se habilita con la moderación.',
+    );
+  }
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-28 md:pb-8">
@@ -343,10 +369,12 @@ export default function PantallaDetalle() {
           <div className="flex flex-col gap-2 md:rounded-lg md:border md:border-line md:bg-white md:p-4">
             <button
               type="button"
-              disabled={!puedeContactar(inmueble.status)}
+              onClick={alInteresar}
+              disabled={!puedeContactar(inmueble.status) || interesado}
+              aria-pressed={interesado}
               className="inline-flex min-h-11 w-full items-center justify-center rounded-md bg-forest px-5 text-body font-semibold text-paper transition-colors duration-200 hover:bg-leaf disabled:cursor-not-allowed disabled:bg-stone motion-reduce:transition-none"
             >
-              {textoPrincipal(inmueble.status)}
+              {interesado ? 'Anotado' : textoPrincipal(inmueble.status)}
             </button>
 
             {conWhatsApp && (

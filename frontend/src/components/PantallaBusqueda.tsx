@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import Cargando from './Cargando';
+import { useAvisos } from './ProveedorAvisos';
 import ChipsActivos from './filtros/ChipsActivos';
 import PanelFiltros from './filtros/PanelFiltros';
 import PropertyCard from './PropertyCard';
@@ -44,6 +45,7 @@ export default function PantallaBusqueda() {
   const [favoritos, setFavoritos] = useState<number[]>([]);
   const [filtros, setFiltros] = useState<Filtros>({});
   const [hojaAbierta, setHojaAbierta] = useState(false);
+  const avisar = useAvisos();
 
   /*
    * Segundos que faltan para poder volver a pedir, o null si no hay
@@ -82,47 +84,60 @@ export default function PantallaBusqueda() {
     filtrosVivos.current = filtros;
   }, [filtros]);
 
-  const cargar = useCallback(async (base: FiltrosApi) => {
-    setEstado('cargando');
+  const cargar = useCallback(
+    async (base: FiltrosApi) => {
+      setEstado('cargando');
 
-    try {
-      const respuesta = await listarPropiedades({
-        ...filtrosAAjax(filtrosVivos.current),
-        ...base,
-      });
+      try {
+        const respuesta = await listarPropiedades({
+          ...filtrosAAjax(filtrosVivos.current),
+          ...base,
+        });
 
-      setPropiedades(respuesta.data);
-      setTotal(respuesta.meta.total);
-      setEspera(null);
-      setEstado('listo');
-    } catch (error) {
-      // 422 es validacion del cliente: el backend ya explico que esta
-      // mal, no es un fallo de conexion al que reintentar.
-      if (error instanceof ErrorApi && error.codigo === 422) {
-        setPropiedades([]);
-        setTotal(0);
+        setPropiedades(respuesta.data);
+        setTotal(respuesta.meta.total);
+        setEspera(null);
         setEstado('listo');
-        return;
-      }
+      } catch (error) {
+        // 422 es validacion del cliente: el backend ya explico que esta
+        // mal, no es un fallo de conexion al que reintentar.
+        if (error instanceof ErrorApi && error.codigo === 422) {
+          setPropiedades([]);
+          setTotal(0);
+          setEstado('listo');
+          return;
+        }
 
-      /*
-       * 429 es RNF-05: se acabo el techo. No es una pagina rota y
-       * reintentar ahora solo lo agrava. Se avisa cuando toca volver
-       * a intentarlo.
-       *
-       * Se conservan los resultados que ya habia en pantalla. Tirar la
-       * lista porque el servidor pidio esperar seria castigar a
-       * alguien por haber cargado mucho.
-       */
-      if (error instanceof ErrorApi && error.codigo === 429) {
-        setEspera(Math.max(0, error.esperarSegundos ?? 60));
-        setEstado('listo');
-        return;
-      }
+        /*
+         * 429 es RNF-05: se acabo el techo. No es una pagina rota y
+         * reintentar ahora solo lo agrava. Se avisa cuando toca volver
+         * a intentarlo.
+         *
+         * Se conservan los resultados que ya habia en pantalla. Tirar la
+         * lista porque el servidor pidio esperar seria castigar a
+         * alguien por haber cargado mucho.
+         */
+        if (error instanceof ErrorApi && error.codigo === 429) {
+          setEspera(Math.max(0, error.esperarSegundos ?? 60));
+          setEstado('listo');
+          return;
+        }
 
-      setEstado('error');
-    }
-  }, []);
+        setEstado('error');
+
+        /*
+         * DS-11: el error de conexion no se descarta solo, y ademas se
+         * dice **aqui**. La pantalla ya tiene su propio estado de error
+         * con su boton de reintentar; el aviso suma lo que paso para
+         * quien no llega a leerlo. Y vive en un toast, no en la lista:
+         * pintado en medio de los resultados, taparia los ultimos que
+         * si se pudieron cargar.
+         */
+        avisar.error(MICROCOPY.general.conexionPerdida);
+      }
+    },
+    [avisar],
+  );
 
   /*
    * El montaje lee los filtros de la URL **antes** de la primera
