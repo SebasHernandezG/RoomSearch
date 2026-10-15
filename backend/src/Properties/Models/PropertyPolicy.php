@@ -24,14 +24,31 @@ class PropertyPolicy
 
     /**
      * Crear publicaciones. Solo quien puede publicar. RF-1.4.
+     *
+     * Y con el correo confirmado. RF-1.3.
+     *
+     * Sin esto, publicar es escribir a cualquiera con cualquier
+     * direccion: no habria forma de saber a quien avisar cuando un
+     * anuncio es un fraude, ni de reclaimar una cuenta falsa.
+     *
+     * La cuenta nace como `tenant` y se pasa a `landlord` aparte, asi
+     * que el rol ya no es una garantia: cualquier persona puede
+     * escribirse con el correo que quiera.
      */
     public function create(?User $user): bool
     {
-        return $user?->isLandlord() ?? false;
+        return $user !== null
+            && $user->isLandlord()
+            && $user->hasVerifiedEmail();
     }
 
     /**
      * Editar. Solo el dueno.
+     *
+     * No se pide correo confirmado a proposito: si pudo crearla, ya lo
+     * tenia confirmado, y la verificacion no se revierte. Pedirlo
+     * otra vez solo dejaria fuera a alguien cuyo correo quedo sin
+     * confirmar por un cambio de direccion.
      *
      * Un admin NO edita la publicacion de otro: la moderacion
      * (RF-7.1) suspende o rechaza, no corrige el texto de alguien. Si
