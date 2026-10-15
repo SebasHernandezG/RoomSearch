@@ -263,7 +263,7 @@ function Controles({
               className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-md border text-small font-semibold transition-colors duration-200 motion-reduce:transition-none ${
                 (filtros.currency ?? 'CRC') === moneda
                   ? 'border-leaf bg-sand text-ink'
-                  : 'border-line bg-paper text-stone'
+                  : 'border-edge bg-paper text-stone'
               }`}
             >
               {moneda === 'CRC' ? '₡ Colones' : 'US$ Dólares'}
@@ -285,7 +285,7 @@ function Controles({
             onChange={(e) =>
               cambiar({ min_rent: e.target.value === '' ? undefined : Number(e.target.value) })
             }
-            className="min-h-11 w-full rounded-md border border-line bg-white px-3 text-body text-ink"
+            className="min-h-11 w-full rounded-md border border-edge bg-white px-3 text-body text-ink"
           />
 
           <span aria-hidden="true" className="text-stone">
@@ -305,7 +305,7 @@ function Controles({
             onChange={(e) =>
               cambiar({ max_rent: e.target.value === '' ? undefined : Number(e.target.value) })
             }
-            className="min-h-11 w-full rounded-md border border-line bg-white px-3 text-body text-ink"
+            className="min-h-11 w-full rounded-md border border-edge bg-white px-3 text-body text-ink"
           />
         </div>
 
@@ -330,7 +330,7 @@ function Controles({
               className={`inline-flex min-h-11 items-center rounded-full border px-4 text-small font-semibold transition-colors duration-200 motion-reduce:transition-none ${
                 filtros.type === tipo.valor
                   ? 'border-leaf bg-sand text-ink'
-                  : 'border-line bg-paper text-stone'
+                  : 'border-edge bg-paper text-stone'
               }`}
             >
               {tipo.etiqueta}
@@ -360,7 +360,7 @@ function Controles({
               className={`inline-flex h-11 w-11 items-center justify-center rounded-md border text-small font-semibold transition-colors duration-200 motion-reduce:transition-none ${
                 filtros.bedrooms === n
                   ? 'border-leaf bg-sand text-ink'
-                  : 'border-line bg-paper text-stone'
+                  : 'border-edge bg-paper text-stone'
               }`}
             >
               {n === 5 ? '5+' : n}
@@ -378,7 +378,7 @@ function Controles({
           aria-labelledby="distrito"
           value={filtros.district ?? ''}
           onChange={(e) => cambiar({ district: e.target.value || undefined })}
-          className="min-h-11 w-full rounded-md border border-line bg-white px-3 text-body text-ink"
+          className="min-h-11 w-full rounded-md border border-edge bg-white px-3 text-body text-ink"
         >
           <option value="">Todos los distritos</option>
           {DISTRITOS.map((d) => (
@@ -427,7 +427,7 @@ function Controles({
           aria-labelledby="orden"
           value={filtros.sort ?? 'recent'}
           onChange={(e) => cambiar({ sort: e.target.value as Filtros['sort'] })}
-          className="min-h-11 w-full rounded-md border border-line bg-white px-3 text-body text-ink"
+          className="min-h-11 w-full rounded-md border border-edge bg-white px-3 text-body text-ink"
         >
           {ORDENES.map((orden) => (
             <option key={orden.valor} value={orden.valor}>

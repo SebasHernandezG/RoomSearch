@@ -173,7 +173,7 @@ export default function FormularioPublicar({ alTerminar }: { alTerminar?: () => 
       {general && (
         <div
           role="alert"
-          className="mt-6 rounded-md border border-clay bg-clay/10 px-4 py-3 text-body text-ink"
+          className="mt-6 rounded-md border border-alert bg-clay/10 px-4 py-3 text-body text-ink"
         >
           {general}
         </div>
@@ -692,7 +692,7 @@ function Interruptor({
  */
 function inputClase(error?: string[]): string {
   return `min-h-11 rounded-md border bg-paper px-3 text-body text-ink transition-colors duration-200 ${
-    error?.length ? 'border-clay' : 'border-line'
+    error?.length ? 'border-alert' : 'border-edge'
   }`;
 }
 
