@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Api\AdminPropertyController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EmailVerificationController;
+use App\Http\Controllers\Api\LandlordProfileController;
 use App\Http\Controllers\Api\MyPropertyController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PropertyController;
@@ -39,6 +40,23 @@ Route::middleware('throttle:api')->group(function (): void {
      | treinta por IP. El general de arriba no alcanza, porque son dos
      | minutos de ventana y una contrasena se adivina con poco.
      */
+
+    /*
+     | Perfil del arrendador, parte publica. RF-1.5.
+     |
+     | **No pide sesion**, y a proposito: un anuncio se puede mirar sin
+     | cuenta (RF-1.4) y el perfil esta en la ficha del inmueble. Pedir
+     | una cuenta para ver un dato que ya esta en pantalla seria poner
+     | una puerta donde no la hay.
+     |
+     | Editar el propio vive mas abajo, en el grupo de `auth:sanctum`,
+     | y no hay ninguna ruta que escriba el perfil de otro.
+     */
+    Route::get('/landlords/{dueno}', [LandlordProfileController::class, 'show'])
+        ->name('api.landlords.show');
+
+    Route::get('/landlords/{dueno}/properties', [LandlordProfileController::class, 'publicaciones'])
+        ->name('api.landlords.properties');
     Route::post('/register', [AuthController::class, 'register'])
         ->name('api.register');
 
@@ -91,6 +109,17 @@ Route::middleware(['throttle:api', 'auth:sanctum'])->group(function (): void {
     Route::get('/user', [AuthController::class, 'user'])
         ->name('api.user');
 
+    /*
+     | El perfil propio del arrendador. RF-1.5.
+     |
+     | Aqui si hay sesion, y es la unica via para escribir un perfil:
+     | no existe ninguna ruta que reciba el perfil de otra cuenta.
+     */
+    Route::get('/landlord-profile', [LandlordProfileController::class, 'mine'])
+        ->name('api.landlord-profile.mine');
+
+    Route::put('/landlord-profile', [LandlordProfileController::class, 'update'])
+        ->name('api.landlord-profile.update');
     Route::post('/logout', [AuthController::class, 'logout'])
         ->name('api.logout');
 
