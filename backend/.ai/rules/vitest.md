@@ -20,18 +20,21 @@ quejarse del formato.
 
 ## Dónde viven
 
-Junto al código, con sufijo `.test.ts`, igual que en el backend, donde
-las pruebas van dentro del módulo (`src/Properties/Tests/Feature/`).
+Junto al código, con sufijo `.test.ts` para la lógica y `.test.tsx`
+para los componentes montados, igual que en el backend, donde las
+pruebas van dentro del módulo (`src/Properties/Tests/Feature/`).
 
 ```
 src/components/PantallaBusqueda.test.ts
 src/components/mapa/PropertyMap.test.ts
 src/lib/format.test.ts
 src/lib/api.test.ts
+src/components/detalle/BotonWhatsApp.test.tsx
+src/components/moderacion/PanelModeracion.test.tsx
 ```
 
 No hay carpeta `tests/`. Para encontrar una prueba se busca el nombre de
-la función en `src`.
+la función o del componente en `src`.
 
 ## Exportá lo que quieras probar
 
@@ -81,11 +84,51 @@ domarlas es un problema más grande que el que se quiere probar. Si
 alguna vez hace falta probar algo que sí depende del Leaflet real,
 ese caso pide `@vitest/browser-playwright`, no un `vi.mock` más grande.
 
-## Qué falta probar
+## React Testing Library
 
-- **React Testing Library.** No está instalado. Sin él no hay forma de
-  probar un componente: hoy solo se prueba lógica suelta.
-- **`PantallaBusqueda` montada.** Es la que coordina mapa, zona y
-  peticiones. Ahí es donde vive el bucle de verdad, y probarla
-  montada requiere RTL.
-- **Accesibilidad.** RNF-11 y DS-10 quedan sin red de seguridad.
+Está instalado: `@testing-library/react`, `user-event`,
+`@testing-library/jest-dom` y `axe-core`, todos **devDependencies**.
+Ninguno llega al bundle — aparecen en el manifiesto solo si se chequea.
+
+Con esto hay componentes montados que se prueban de verdad:
+`BotonWhatsApp.test.tsx`, `PanelModeracion.test.tsx` y
+`accesibilidad.test.tsx`.
+
+### `fireEvent` y no `element.click()`
+
+Pulsar el nodo directamente **no actualiza** el estado de React bajo
+RTL:
+
+```ts
+// MAL: el manejador corre, el estado no se aplica
+screen.getByRole('button', { name: /rechazar/i }).click();
+expect(screen.getByRole('dialog')).toBeInTheDocument();  // falla
+
+// BIEN
+fireEvent.click(screen.getByRole('button', { name: /rechazar/i }));
+```
+
+La actualización queda fuera de `act()`, así que la prueba ve la
+pantalla de antes. El síntoma es desconcertante porque el `onClick`
+**sí** se ejecutó: lo que no se aplicó fue el render.
+
+La regla corta: **siempre `fireEvent` o `userEvent`, nunca `.click()`
+directo sobre el nodo.**
+
+### Lo que axe no puede verificar
+
+`src/test/accesibilidad.ts` desactiva dos reglas, y no por pereza:
+
+| Regla | Por qué |
+| --- | --- |
+| `region` | jsdom no calcula la geometría, así que marca como "fuera de región" todo lo que no este en un landmark real |
+| `color-contrast` | jsdom no renderiza: no hay píxeles, no hay contraste |
+
+La regla que **sí** corre y que de verdad atrapa cosas: los nombres
+accesibles. Un `<form>` sin etiqueta y un `<button>` sin texto son
+fallos que el resto de pruebas no ven.
+
+El contraste real lo mide `src/styles/contraste.test.ts`, leyendo
+`tokens.css` con `node:fs` y calculando la ratio a mano. Es un
+arreglo distinto y complementario: `tokens.css` es la única fuente de
+color, y si alguien mete un `#fff` suelto, el test lo ve.

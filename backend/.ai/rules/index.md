@@ -28,6 +28,7 @@ ninguna, porque se sigue creyendo.
 | [modulos.md](modulos.md) | `src/**` | Cómo está partido el monolito modular y qué va en cada módulo |
 | [api.md](api.md) | `routes/api.php`, `app/Http/**` | Convenciones de la API: validación, Resources, rate limiting |
 | [auth.md](auth.md) | `routes/api.php`, `src/Identity/**`, `src/Properties/Models/PropertyPolicy.php`, `app/Http/Middleware/**`, `lang/**` | Tokens, roles, Policies, límites de intentos y los 422 en español |
+| [pruebas.md](pruebas.md) | `**/*Test.php`, `database/factories/**` | Las trampas de las fábricas y de `RefreshDatabase` que hacen que una prueba pase midiendo lo contrario |
 | [mapa-frontend.md](mapa-frontend.md) | `frontend/src/components/mapa/**`, `frontend/src/components/PantallaBusqueda.tsx` | Los bucles entre mapa, zona y peticiones, y el tamaño del contenedor en Leaflet |
 | [port-produccion.md](port-produccion.md) | `frontend/src/components/mapa/SelectorPin.tsx`, `config/database.php` | Qué se trajo de la rama `Producción`, qué se descartó y por qué |
 | [vitest.md](vitest.md) | `frontend/**/*.test.ts`, `frontend/vite.config.js` | El runner del frontend, dónde viven las pruebas y qué no se prueba con DOM |
@@ -40,20 +41,25 @@ Si no sabés en qué archivo está lo que buscás:
 grep -rin 'geometria\|spatial\|srid' .ai/rules
 grep -rin 'throttle\|rate' .ai/rules
 grep -rin 'invalidate\|leaflet\|zoom' .ai/rules
+grep -rin 'factory\|RefreshDatabase\|casts' .ai/rules
 ```
 
 ## Lo que estas reglas NO cubren
 
-- **El formulario de publicación (DS-8).** RF-2.1 ya publica por API,
-  pero en el frontend no hay pantalla: quien llega a `/api/properties`
-  desde el navegador lo que encuentra es un 401.
-- **La moderación es solo dos rutas.** `approve` y `reject` funcionan y
-  tienen pruebas, pero no hay panel, ni cola, ni registro de quién
-  aprobó qué (RF-7.4).
-- Perfiles de arrendador e inquilino: llegan con RF-1.5. Cuando
-  existan, agregar `profiles.md`.
-- Verificación de correo y recuperación de contraseña: llegan con
-  RF-1.3.
-- **React Testing Library.** Vitest corre, pero solo se prueba lógica
-  suelta: no hay forma de montar un componente todavía. Ver
-  [vitest.md](vitest.md).
+Lo que sigue está pendiente. Si algo de esta lista ya se hizo y la
+lista no se actualizó, **esa lista es el bug**: una regla vieja es
+peor que ninguna, porque se sigue creyendo.
+
+- **Compresión de imágenes (RF-2.3).** La galería sube, elige
+  principal y borra, pero los archivos se guardan tal cual. El issue la
+  pide y es trabajo real: GD o un servicio aparte, más una cola para no
+  bloquear la petición.
+- **Registro de quién aprobó qué (RF-7.4).** El panel de moderación
+  funciona y decide, pero no queda rastro de quién tomó la decisión.
+- **"Me interesa" no tiene a quién avisar (RF-5.1).** No hay endpoint
+  de contacto ni de favoritos: `routes/api.php` no pasa de moderación.
+  El botón alterna estado local y lo dice en un aviso.
+- **Perfil del inquilino (RF-1.6).** El del arrendador existe; el del
+  inquilino no.
+- **La compresión y el registro de moderación** son los dos huecos
+  reales del backend actual.
