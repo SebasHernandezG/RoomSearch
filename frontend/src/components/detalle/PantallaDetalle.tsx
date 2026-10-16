@@ -26,6 +26,7 @@ import Cargando from '../Cargando';
 import { ErrorConexion } from '../estadosBusqueda';
 import Estado, { AccionPrimaria } from '../Estado';
 import MiniMapa from '../mapa/MiniMapa';
+import GaleriaImagenes from './GaleriaImagenes';
 import { useAvisos } from '../ProveedorAvisos';
 import { obtenerPropiedad } from '../../lib/api';
 import { formatPrice } from '../../lib/format';
@@ -197,17 +198,15 @@ export default function PantallaDetalle() {
             </div>
           </div>
         ) : (
-          <ul className="grid grid-cols-2 gap-2">
-            {fotos.map((foto) => (
-              <li key={foto.id}>
-                <img
-                  src={foto.url}
-                  alt={foto.alt}
-                  className="aspect-[4/3] w-full rounded-lg object-cover"
-                />
-              </li>
-            ))}
-          </ul>
+          /*
+           * La galeria de verdad: la primera a pantalla completa,
+           * deslizable con el dedo, con contador. DS-12.
+           *
+           * Antes era una cuadricula de miniaturas, que es exactamente
+           * lo que el issue rechaza: "las fotos se ven deslizando, no
+           * miniaturas minusculas".
+           */
+          <GaleriaImagenes imagenes={fotos} titulo={inmueble.title} />
         )}
       </section>
 

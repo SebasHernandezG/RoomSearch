@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 use Modules\Identity\Models\User;
 use Modules\Properties\Enums\Currency;
@@ -137,6 +138,22 @@ class Property extends Model
     public function dueno(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * Las fotos de este inmueble. RF-2.3.
+     *
+     * El orden va en la relacion y no en cada consulta porque la
+     * galeria se lee siempre igual -- principal primero y luego por
+     * puesto-- y por escrito en cinco sitios distintos termine
+     *iefsiendo el principal primero en cuatro y el puesto primero en
+     * uno.
+     */
+    public function imagenes(): HasMany
+    {
+        return $this->hasMany(PropertyImage::class, 'property_id')
+            ->orderByDesc('is_primary')
+            ->orderBy('position');
     }
 
     /**

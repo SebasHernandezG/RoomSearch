@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\MyPropertyController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PropertyController;
+use App\Http\Controllers\Api\PropertyImageController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -120,6 +121,21 @@ Route::middleware(['throttle:api', 'auth:sanctum'])->group(function (): void {
 
     Route::post('/properties/{property}/rented', [MyPropertyController::class, 'markRented'])
         ->name('api.properties.rented');
+
+    /*
+     | Fotografias. RF-2.3.
+     |
+     | Las rutas cuelgan de `properties/{property}`, no de una raiz
+     | `/images`: una foto sin publicacion no existe, y el permiso se
+     | revisa con `PropertyPolicy::update` sobre la publicacion, que es
+     | la que tiene el dueno. Con una raiz propia habria que volver a
+     | preguntar de quien es cada foto.
+     */
+    Route::post('/properties/{property}/images', [PropertyImageController::class, 'store'])
+        ->name('api.properties.images.store');
+
+    Route::delete('/properties/{property}/images/{imagen}', [PropertyImageController::class, 'destroy'])
+        ->name('api.properties.images.destroy');
 
     /*
      | Moderacion. RF-7.1.

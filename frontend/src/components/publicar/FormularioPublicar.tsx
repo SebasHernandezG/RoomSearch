@@ -22,6 +22,8 @@ import type { ReactNode } from 'react';
 import SelectorPin from '../mapa/SelectorPin';
 import { MICROCOPY } from '../../lib/microcopy';
 import { borrarBorrador, guardarBorrador, leerBorrador, tieneContenido } from '../../lib/borrador';
+import { indiceDePrincipal, nuevas, type FotoElegida } from '../../lib/fotos';
+import { SubirFotos } from './SubirFotos';
 import { useSesion } from '../SesionContexto';
 import { useAvisos } from '../ProveedorAvisos';
 import { DISTRITOS, DATOS_VACIOS, MONEDAS, PASOS, TIPOS, type DatosPublicacion } from './datos';
@@ -34,6 +36,7 @@ export default function FormularioPublicar({ alTerminar }: { alTerminar?: () => 
   const [datos, setDatos] = useState<DatosPublicacion>(DATOS_VACIOS);
   const [enviando, setEnviando] = useState(false);
   const [recuperado, setRecuperado] = useState(false);
+  const [fotos, setFotos] = useState<FotoElegida[]>([]);
   const [errores, setErrores] = useState<Record<string, string[]>>({});
   const [general, setGeneral] = useState<string | null>(null);
 
@@ -130,10 +133,60 @@ export default function FormularioPublicar({ alTerminar }: { alTerminar?: () => 
         return;
       }
 
+      /*
+       * Las fotos van en un segundo paso. RF-2.3.
+       *
+       * No se pueden mandar en el mismo POST: el endpoint de fotos
+       * cuelga de `/properties/{id}/images`, y ese `id` solo existe
+       * despues de que la publicacion se creo. Por eso son dos
+       * peticiones y no un `FormData` con todo junto.
+       *
+       * Y el borrador se borra **despues** de las fotos, no antes: si
+       * la subida falla, el texto escrito sigue guardado y solo se
+       * pierden los archivos, que es lo menos malo. Al reves, un fallo
+       * de red en la segunda peticion tiraria media hora de escritura
+       * por un archivo que no subio.
+       */
+      const idPublicacion = (await respuesta.json()) as { data?: { id?: number } };
+      const id = idPublicacion.data?.id;
+
+      if (nuevas(fotos).length > 0 && typeof id === 'number') {
+        const cuerpo = new FormData();
+
+        for (const foto of nuevas(fotos)) {
+          cuerpo.append('fotos[]', foto.archivo, foto.archivo.name);
+        }
+
+        cuerpo.append('principal', String(indiceDePrincipal(fotos)));
+
+        const subida = await fetch(`/api/properties/${id}/images`, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${localStorage.getItem('roomies.token')}`,
+          },
+          body: cuerpo,
+        });
+
+        if (!subida.ok) {
+          /*
+           * La publicacion **ya existe**. Avisarlo y no borrar el
+           * borrador: quien intente de nuevo va a crear un anuncio
+           * duplicado, y eso es peor que volver a subir las fotos.
+           */
+          avisar.error(
+            'Tu publicación quedó creada, pero las fotos no se pudieron subir. Abrí "Mis publicaciones" para añadirlos.',
+          );
+
+          alTerminar?.();
+
+          return;
+        }
+      }
+
       // Solo se borra cuando la publicacion **existe**. Si fallo,
       // borrar el borrador seria tirar el trabajo de la persona.
       borrarBorrador();
-
       /*
         DS-11: el exito se anuncia y no se deduce.
        *
@@ -233,6 +286,18 @@ export default function FormularioPublicar({ alTerminar }: { alTerminar?: () => 
         {paso === 2 && <PasoPrecio datos={datos} errores={errores} cambiar={cambiar} />}
         {paso === 3 && <PasoCaracteristicas datos={datos} errores={errores} cambiar={cambiar} />}
         {paso === 4 && <PasoServicios datos={datos} errores={errores} cambiar={cambiar} />}
+
+        {paso === 5 && (
+          <div className="flex flex-col gap-3">
+            <h2 className="text-h2">Fotos del inmueble</h2>
+
+            <p className="text-small text-stone">
+              La primera es la que sale en el mapa. Poné al menos una.
+            </p>
+
+            <SubirFotos fotos={fotos} onCambio={setFotos} enviando={enviando} />
+          </div>
+        )}
         {paso === 6 && <PasoUbicacion datos={datos} errores={errores} cambiar={cambiar} />}
       </section>
 

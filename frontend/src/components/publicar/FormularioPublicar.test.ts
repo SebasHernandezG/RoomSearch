@@ -145,17 +145,37 @@ describe('PASO_DE', () => {
 
 describe('PASOS', () => {
   /**
-   * RF-2.3 no existe: la API devuelve `images: []` y no hay subida
-   * de archivos. Con el paso ahi, alguien llenaria los otros cinco,
-   * llegaria a "Fotos" y no podria avanzar ni volver atras sin perder
-   * lo escrito.
+   * El paso 5 se ago cuando RF-2.3 dejo de estar bloqueado.
+   *
+   * Antes se afirmaba lo contrario --"no incluye el paso de fotos"--
+   * con el motivo al lado. Esa prueba se eliminaria con el endpoint.
+   * Esta la reemplaza y fija que el paso existe y esta en su lugar.
    */
-  it('no incluye el paso de fotos', () => {
-    expect(PASOS.map((p) => p.numero)).not.toContain(5);
+  it('incluye el paso de fotos, en su lugar', () => {
+    expect(PASOS.map((p) => p.numero)).toContain(5);
+    expect(PASOS[4]).toEqual({ numero: 5, nombre: 'Fotos' });
   });
 
-  it('arranca en basico y termina en ubicacion', () => {
-    expect(PASOS[0].numero).toBe(1);
-    expect(PASOS[PASOS.length - 1].numero).toBe(6);
+  it('son los seis, en orden', () => {
+    expect(PASOS.map((p) => p.numero)).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  /**
+   * Sin huecos.
+   *
+   * Un salto --1, 2, 3, 5-- hace que el conteo "Paso 4 de 6" no
+   * coincida con nada, y es el tipo de error que solo se ve cuando
+   * alguien llega al final del formulario.
+   */
+  it('no deja numeros sin usar', () => {
+    const numeros = PASOS.map((p) => p.numero);
+
+    expect(numeros).toEqual(Array.from({ length: PASOS.length }, (_, i) => i + 1));
+  });
+
+  it('cada paso tiene nombre', () => {
+    for (const paso of PASOS) {
+      expect(paso.nombre.length).toBeGreaterThan(0);
+    }
   });
 });
