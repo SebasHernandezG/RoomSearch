@@ -45,6 +45,19 @@ class PropertyController extends Controller
         $this->aplicarOrden($consulta, $request);
 
         $paginacion = $consulta
+            /*
+             * Las fotos vienen con el listado. RF-2.3.
+             *
+             * Sin esto, `PropertyResource` devuelve `images: []`
+             * porque la relacion no esta cargada, y la tarjeta del
+             * mapa muestra el placeholder en todos los anuncios que si
+             * tienen fotos.
+             *
+             * Va en la consulta y no en un `load` despues de la
+             * paginacion: cargarlo despues seria N+1, una consulta por
+             * inmueble.
+             */
+            ->with('imagenes')
             ->paginate((int) $request->input('per_page', 24))
             ->withQueryString();
 
@@ -60,7 +73,7 @@ class PropertyController extends Controller
             throw new NotFoundHttpException('Este inmueble no esta disponible.');
         }
 
-        return new PropertyResource($property);
+        return new PropertyResource($property->load('imagenes'));
     }
 
     /**

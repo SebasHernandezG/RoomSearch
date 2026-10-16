@@ -34,6 +34,7 @@ class MyPropertyController extends Controller
         $publicaciones = Property::query()
             ->where('user_id', $request->user()->getKey())
             ->latest()
+            ->with('imagenes')
             ->paginate(24);
 
         return PropertyResource::collection($publicaciones);

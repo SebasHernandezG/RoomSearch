@@ -264,7 +264,7 @@ describe('imagenes', () => {
   });
 
   it('devuelve las fotos cuando existen', () => {
-    const lista = [{ id: 1, url: '/a.jpg', alt: 'Sala' }];
+    const lista = [{ id: 1, url: '/a.jpg', alt: 'Sala', is_primary: true }];
 
     expect(imagenes(inmueble({ images: lista }))).toEqual(lista);
   });

@@ -87,15 +87,21 @@ export const DATOS_VACIOS: DatosPublicacion = {
 /**
  * Los seis pasos de DS-8.
  *
- * El paso 5 (Fotos) **no esta**: RF-2.3 no existe, la API devuelve
- * `images: []` y no hay subida de archivos. Ponerlo aqui sin poder
- * cumplirlo seria mostrar un paso que no deja avanzar.
+ * El paso 5 es Fotos y **ya tiene endpoint** (RF-2.3). La API devuelve
+ * `images` de verdad y la subida va contra
+ * `/properties/{id}/images`.
+ *
+ * Las fotos **no** viajan en el mismo POST que el inmueble: se suben
+ * despues, y el `id` solo existe cuando la publicacion se creo. Por
+ * eso el envio son dos pasos y por eso el borrador guarda los archivos
+ * aparte del resto del formulario.
  */
 export const PASOS = [
   { numero: 1, nombre: 'Básico' },
   { numero: 2, nombre: 'Precio' },
   { numero: 3, nombre: 'Características' },
   { numero: 4, nombre: 'Servicios' },
+  { numero: 5, nombre: 'Fotos' },
   { numero: 6, nombre: 'Ubicación' },
 ] as const;
 

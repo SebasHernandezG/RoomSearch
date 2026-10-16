@@ -17,6 +17,8 @@ export interface PropertyImage {
   url: string;
   /** Alt describe el inmueble, no el archivo: DS-10 exige textos utiles. */
   alt: string;
+  /** RF-2.3: la que sale primero en la galeria. */
+  is_primary: boolean;
 }
 
 export interface Property {

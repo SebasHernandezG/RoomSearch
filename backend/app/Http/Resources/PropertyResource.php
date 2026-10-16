@@ -7,6 +7,7 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Properties\Models\Property;
+use Modules\Properties\Models\PropertyImage;
 
 /**
  * Representacion de un inmueble para la API.
@@ -67,9 +68,28 @@ class PropertyResource extends JsonResource
             // posicion verdadera: darlo sin filtrar delata el pin.
             'distance_meters' => $punto->distanciaRevelable($distancia),
 
-            // Vienen vacios hasta que existan RF-2.3 (fotos) y RF-8.1
-            // (verificacion). El frontend ya los espera.
-            'images' => [],
+            /*
+             * RF-2.3. La galeria llega vacia hasta que exista el
+             * endpoint; mientras tanto el frontend la pinta como
+             * placeholder.
+             *
+             * `url()` devuelve `null` cuando el archivo no esta, y la
+             * foto se omite en vez de salir con una URL rota: el issue
+             * de DS-12 pide "placeholder elegante, no imagen rota".
+             */
+            'images' => $this->resource->relationLoaded('imagenes')
+                ? $this->resource->imagenes
+                    ->map(fn (PropertyImage $imagen): ?array => $imagen->url() === null ? null : [
+                        'id' => $imagen->id,
+                        'url' => $imagen->url(),
+                        'alt' => $imagen->alt,
+                        'is_primary' => (bool) $imagen->is_primary,
+                    ])
+                    ->filter()
+                    ->values()
+                    ->all()
+                : [],
+
             'landlord_verified' => false,
             'is_favorite' => false,
 
