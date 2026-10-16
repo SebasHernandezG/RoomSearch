@@ -73,7 +73,18 @@ class PropertyController extends Controller
             throw new NotFoundHttpException('Este inmueble no esta disponible.');
         }
 
-        return new PropertyResource($property->load('imagenes'));
+        /*
+         * El contacto del dueno viaja con el detalle. RF-5.2.
+         *
+         * Es una relacion anidada --`dueno.perfilArrendador`-- y
+         * por eso va en `show` y no en `index`: el listado devuelve
+         * hasta 24 inmuebles y cargar el perfil de 24 duenos para
+         * pintar el boton de cada tarjeta seria una peticion extra
+         * por anuncio que el listado no muestra.
+         */
+        return new PropertyResource(
+            $property->load(['imagenes', 'dueno.perfilArrendador'])
+        );
     }
 
     /**

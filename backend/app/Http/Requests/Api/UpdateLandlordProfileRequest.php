@@ -47,6 +47,13 @@ class UpdateLandlordProfileRequest extends FormRequest
              * el campo entero. Aqui se manda siempre desde el
              * formulario.
              */
+            /*
+             * WhatsApp: mismo formato que el telefono, porque la URL de
+             * wa.me se arma con este valor y un numero con espacios no
+             * abre. RF-5.2.
+             */
+            'whatsapp_number' => ['nullable', 'regex:/^\+[1-9]\d{1,14}$/'],
+
             'phone_private' => ['boolean'],
 
             'bio' => ['nullable', 'string', 'max:400'],
@@ -87,6 +94,7 @@ class UpdateLandlordProfileRequest extends FormRequest
             'years_experience.max' => 'Esa cifra no es creíble. ¿Querías decir cuántos años?',
             'foto.max' => 'La foto de perfil pesa demasiado.',
             'bio.max' => 'La presentación es de 400 caracteres, no más.',
+            'whatsapp_number.regex' => 'El WhatsApp también va con código de país y solo números: +50688881234.',
         ];
     }
 
@@ -101,7 +109,7 @@ class UpdateLandlordProfileRequest extends FormRequest
      */
     public function perfil(): array
     {
-        $datos = $this->safe()->only(['phone', 'bio', 'years_experience']);
+        $datos = $this->safe()->only(['phone', 'whatsapp_number', 'bio', 'years_experience']);
 
         /*
          * El interruptor se guarda tal cual vino.

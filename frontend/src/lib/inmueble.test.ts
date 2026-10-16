@@ -5,7 +5,6 @@ import {
   datosEstructurados,
   imagenes,
   puedeContactar,
-  puedeWhatsApp,
   pinVisible,
   plural,
   referencia,
@@ -120,20 +119,6 @@ describe('textoPrincipal', () => {
 
   it('una pausada todavia se puede contactar', () => {
     expect(puedeContactar('pausada')).toBe(true);
-  });
-});
-
-describe('puedeWhatsApp', () => {
-  /**
-   * La API no manda telefono: `Property` ni tiene el campo. El boton
-   * sale solo cuando exista, y no antes.
-   *
-   * Un boton de WhatsApp que aparece cuando el contacto es privado es
-   * una fuga de datos en un boton. La condicion de privacidad va
-   * **antes** que esta; esta funcion solo documenta el estado.
-   */
-  it('es falso mientras la API no mande telefono', () => {
-    expect(puedeWhatsApp(inmueble())).toBe(false);
   });
 });
 

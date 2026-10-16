@@ -60,6 +60,20 @@ class LandlordProfileResource extends JsonResource
              */
             'phone_public' => $telefono !== null,
 
+            /*
+             * WhatsApp. RF-5.2.
+             *
+             * El numero va **crudo**, en E.164, y el frontend arma la
+             * URL de `wa.me` con el mensaje prellenado. Armarla en el
+             * backend obligaria a volver a pedir el perfil cada vez
+             * que cambia el texto del mensaje, y el mensaje depende
+             * del inmueble que se esta viendo.
+             *
+             * Govierna el mismo interruptor que el telefono. Ver
+             * `LandlordProfile::whatsappPublico()`.
+             */
+            'whatsapp' => $this->resource->whatsappPublico(),
+
             'photo_url' => $this->resource->fotoUrl(),
 
             'bio' => $this->resource->bio,
