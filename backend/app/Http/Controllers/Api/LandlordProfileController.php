@@ -65,15 +65,21 @@ class LandlordProfileController extends Controller
         $perfil->fill($request->perfil());
 
         /*
-         * Sin telefono, no hay nada que exponer.
+         * Sin ningun numero, no hay nada que exponer.
          *
-         * Si alguien borra el numero pero deja el interruptor en
+         * Si alguien borra los dos numeros pero deja el interruptor en
          * publico, el estado queda incoherente: el perfil dice "puede
-         * ver mi telefono" y no hay telefono. Se resuelve aqui y no en
+         * ver mi contacto" y no hay contacto. Se resuelve aqui y no en
          * el Resource, para que el dato guardado sea coherente por si
          * solo.
+         *
+         * La comprobacion es `tieneAlgunNumero()` y **no**
+         * "el telefono esta vacio": con WhatsApp solito --una linea de
+         * WhatsApp Business y ningun celular-- la version que comprueba
+         * solo el telefono dejaba el perfil en privado y el numero que
+         * el dueno si queria mostrar no salia nunca.
          */
-        if ($perfil->phone === null || $perfil->phone === '') {
+        if (! $perfil->tieneAlgunNumero()) {
             $perfil->phone_private = true;
         }
 

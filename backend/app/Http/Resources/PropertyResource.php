@@ -93,6 +93,40 @@ class PropertyResource extends JsonResource
             'landlord_verified' => false,
             'is_favorite' => false,
 
+            /*
+             * El contacto del dueno. RF-5.2.
+             *
+             * ## Por que va aqui y no se pide `/landlords/{id}`
+             *
+             * Porque el frontend **no sabe de quien es el inmueble**:
+             * el Resource publico no lleva el id del dueno, y sin el
+             * no hay forma de pedir el perfil. Y meter
+             * `landlord_id` para obligar al navegador a hacer una
+             * segunda peticion solo para eso es una ida y vuelta en
+             * cada ficha, con un fallo mas que puede dejar la pantalla
+             * a medias.
+             *
+             * ## Por que la privacidad se decide en el modelo
+             *
+             * No se reevalua aqui. `LandlordProfile` ya sabe si el
+             * dueno marco el contacto privado y si su correo esta
+             * confirmado, y esa regla es de negocio, no de formato.
+             * Reimplementarla en cada Resource que imprima contacto es
+             * como se acaba publicando un numero por privado.
+             *
+             * El guardia es `dueno`, no `dueno.perfilArrendador`:
+             * `whenLoaded` mira `$this->relations`, y una relacion
+             * anidada que se cargo con `load(['dueno.perfil'])` queda
+             * registrada como `dueno` en el padre --no como
+             * `dueno.perfil`-- asi que `whenLoaded('dueno.perfil')`
+             * nunca encuentra nada y la clave sale siempre ausente.
+             */
+            'contacto' => $this->whenLoaded('dueno', fn (): array => [
+                'phone' => $this->dueno?->perfilArrendador?->telefonoPublico(),
+                'whatsapp' => $this->dueno?->perfilArrendador?->whatsappPublico(),
+                'email_verified' => (bool) $this->dueno?->hasVerifiedEmail(),
+            ]),
+
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

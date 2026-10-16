@@ -82,5 +82,23 @@ export interface Property {
 
   images: PropertyImage[];
 
+  /**
+   * El contacto del dueno. RF-5.2.
+   *
+   * Solo viaja en el **detalle**, no en el listado: cargar el perfil de
+   * cada dueno para pintar un boton de cada tarjeta seria una peticion
+   * extra por anuncio que la tarjeta ni siquiera muestra.
+   *
+   * Los dos numeros vienen `null` cuando el dueno marco el contacto
+   * privado, y esa decision la tomo el backend --`LandlordProfile`--,
+   * no el frontend. `null` no es un fallo que haya que reintentar ni un
+   * dato que se pueda adivinar.
+   */
+  contacto?: {
+    phone: string | null;
+    whatsapp: string | null;
+    email_verified: boolean;
+  } | null;
+
   created_at?: string | null;
 }

@@ -26,12 +26,13 @@ use Illuminate\Support\Facades\Storage;
  *
  * @property int $user_id
  * @property string|null $phone
+ * @property string|null $whatsapp_number
  * @property bool $phone_private
  * @property string|null $photo_path
  * @property string|null $bio
  * @property int|null $years_experience
  */
-#[Fillable(['user_id', 'phone', 'phone_private', 'photo_path', 'bio', 'years_experience'])]
+#[Fillable(['user_id', 'phone', 'whatsapp_number', 'phone_private', 'photo_path', 'bio', 'years_experience'])]
 class LandlordProfile extends Model
 {
     public function user(): BelongsTo
@@ -64,43 +65,88 @@ class LandlordProfile extends Model
     }
 
     /**
-     * Si se puede mostrar el telefono.
+     * Si se puede mostrar **cualquier** dato de contacto.
      *
      * Las tres condiciones, no dos:
      *
-     * 1. Hay telefono.
-     * 2. El dueno no lo marco privado.
-     * 3. La cuenta tiene el correo confirmado.
+     * 1. El dueno no lo marco privado.
+     * 2. La cuenta tiene el correo confirmado.
+     * 3. Hay por lo menos un numero escrito.
      *
-     * La tercera es la que se olvida. Un contacto publicado de una
-     * cuenta sin confirmar es un dato de contacto de alguien a quien no
-     * se le puede reclamar: si el anuncio es un fraude, el telefono
-     * ya esta en miles de pantallas y no hay a quien avisarle.
+     * ## Por que la tercera es una condicion y no un detalle de cada
+     * numero
+     *
+     * Porque un dueno puede tener WhatsApp Business y **no** querer
+     * que se vea su celular. Si esta comprobacion exigiera un
+     * telefono, su WhatsApp --que es justo lo que quiere mostrar-- no
+     * saldria nunca, y habria escrito un numero para nada.
+     *
+     * Y la razon por la que el correo confirmado importa: un contacto
+     * publicado de una cuenta sin confirmar es el dato de alguien a
+     * quien no se le puede reclamar. Si el anuncio es un fraude, el
+     * numero ya esta en miles de pantallas y no hay a quien avisarle.
      */
-    public function telefonoPublicable(): bool
+    public function puedeMostrarContacto(): bool
     {
-        if ($this->phone === null || $this->phone === '') {
-            return false;
-        }
-
         if ($this->phone_private) {
             return false;
         }
 
-        return $this->user !== null && $this->user->hasVerifiedEmail();
+        if ($this->user === null || ! $this->user->hasVerifiedEmail()) {
+            return false;
+        }
+
+        return $this->tieneAlgunNumero();
+    }
+
+    /**
+     * Si hay por lo menos un numero escrito.
+     */
+    public function tieneAlgunNumero(): bool
+    {
+        $tieneTelefono = $this->phone !== null && $this->phone !== '';
+        $tieneWhatsapp = $this->whatsapp_number !== null && $this->whatsapp_number !== '';
+
+        return $tieneTelefono || $tieneWhatsapp;
     }
 
     /**
      * El telefono, o `null` si no se puede mostrar.
      *
-     * `publicarTelefono()` y no `telefonoPublicable()` en los
-     * Resources: la regla de "se puede o no" y el dato son dos
-     * preguntas distintas, y mezclarlas hace que un sitio escriba
-     * `$perfil->telefono` sin mirar.
+     * `telefonoPublico()` y no `$this->phone` en los Resources: la
+     * regla de "se puede o no" y el dato son dos preguntas distintas,
+     * y mezclarlas hace que un sitio escriba el campo sin mirar.
      */
     public function telefonoPublico(): ?string
     {
-        return $this->telefonoPublicable() ? $this->phone : null;
+        if (! $this->puedeMostrarContacto()) {
+            return null;
+        }
+
+        return $this->phone === null || $this->phone === '' ? null : $this->phone;
+    }
+
+    /**
+     * El numero de WhatsApp, o `null` si no se puede mostrar. RF-5.2.
+     *
+     * **Comparte el interruptor con el telefono**, a proposito: es un
+     * solo boton, "no muestres mi contacto". Dos interruptores serian
+     * mas flexibles y mucho mas engorrosos, y el dueno acabaria
+     * marcandolos los dos por si acaso.
+     *
+     * El numero es distinto del telefono --una linea de WhatsApp
+     * Business suele ser una linea aparte-- pero la decision de
+     * exponerlo es la misma.
+     */
+    public function whatsappPublico(): ?string
+    {
+        if (! $this->puedeMostrarContacto()) {
+            return null;
+        }
+
+        return $this->whatsapp_number === null || $this->whatsapp_number === ''
+            ? null
+            : $this->whatsapp_number;
     }
 
     /**

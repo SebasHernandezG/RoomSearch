@@ -35,14 +35,16 @@ import {
   datosEstructurados,
   imagenes,
   puedeContactar,
-  puedeWhatsApp,
   pinVisible,
   plural,
   referencia,
+  referenciaCorta,
   servicios,
   textoPrincipal,
   tipoTexto,
 } from '../../lib/inmueble';
+import BotonWhatsApp from './BotonWhatsApp';
+import { enlaceWhatsApp, type PerfilDueno } from '../../lib/whatsapp';
 import type { Property } from '../../types/property';
 
 export default function PantallaDetalle() {
@@ -123,7 +125,24 @@ export default function PantallaDetalle() {
 
   const aviso = cintillo(inmueble.status);
   const fotos = imagenes(inmueble);
-  const conWhatsApp = puedeWhatsApp(inmueble);
+
+  /*
+   * El contacto viaja con el inmueble. RF-5.2.
+   *
+   * Viene en `data.contacto`, no en una peticion aparte: el backend
+   * ya decidio si el dueno lo expone, y volver a pedirlo desde aca
+   * seria una segunda fuente de verdad para la misma regla de
+   * privacidad. Si no viene contacto, no hay boton -- y no es un fallo
+   * que haya que ocultar.
+   */
+  const contacto = (inmueble.contacto ?? null) as PerfilDueno | null;
+
+  const enlace = enlaceWhatsApp(contacto, {
+    title: inmueble.title,
+    address_reference: inmueble.address_reference,
+    district: inmueble.district,
+    reference: referenciaCorta(inmueble),
+  });
 
   /*
     "Me interesa" todavia no tiene a quien avisar.
@@ -376,14 +395,13 @@ export default function PantallaDetalle() {
               {interesado ? 'Anotado' : textoPrincipal(inmueble.status)}
             </button>
 
-            {conWhatsApp && (
-              <button
-                type="button"
-                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-sun px-5 text-body font-semibold text-ink transition-colors duration-200 hover:bg-sun/80 motion-reduce:transition-none"
-              >
-                WhatsApp
-              </button>
-            )}
+            {/*
+             * Antes esto era un `<button>` sin `onClick`: un control que
+             * se veia, ocupaba sitio y no hacia nada. Un boton muerto
+             * es peor que ningun boton, porque promete una accion que
+             * no existe.
+             */}
+            <BotonWhatsApp perfil={contacto} enlace={enlace} />
 
             <Link
               to="/"

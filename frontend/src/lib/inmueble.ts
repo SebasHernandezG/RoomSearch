@@ -7,12 +7,16 @@
  * cuenta, el boton podria decir "Me interesa" en una publicacion
  * alquilada y los datos de SEO podrian prometer fotos que no hay.
  *
- * ## Lo que la API todavia no manda
+ * ## Lo que se fue a otras librerias
  *
- * `images` viene `[]` (RF-2.3) y no hay telefono ni perfil del
- * arrendador. Las funciones de abajo lo dicen en vez de inventarlo:
- * `puedeWhatsApp` es `false` siempre, con el motivo escrito, y la
- * galeria cae al placeholder. Cuando existan, se cambia una linea.
+ * `puedeWhatsApp` vivio aqui con un `return false` y el motivo
+ * escrito, porque no habia numero de donde sacarlo. Ya lo hay, pero no
+ * es una decision de este archivo: depende del perfil del dueno, que
+ * viene de `/landlords/{id}` y no del inmueble. Vive en
+ * `lib/whatsapp.ts` junto al enlace y al mensaje.
+ *
+ * `images` ya no viene `[]` (RF-2.3) y `imagenes()` devuelve la
+ * galeria de verdad, con el placeholder solo cuando no hay ninguna.
  */
 
 import { formatPrice, TIPO_LABEL } from './format';
@@ -115,6 +119,22 @@ export function referencia(
 }
 
 /**
+ * La referencia corta del anuncio, del tipo `RS-1042`.
+ *
+ * ## Para que existe
+ *
+ * Para que el dueno sepa **de cual** de sus anuncios le escriben. Sin
+ * ella, el mensaje de WhatsApp es "Hola, me interesa el apartamento" y
+ * con ocho anuncios activos es indistinguible de los otros siete.
+ *
+ * Va en el mensaje prellenado, no en la pantalla: un `RS-1042` en
+ * pantalla es ruido para quien busca y no aporta nada.
+ */
+export function referenciaCorta(property: Pick<Property, 'id'>): string {
+  return `RS-${property.id}`;
+}
+
+/**
  * Si el mapa puede mostrar el pin exacto.
  *
  * Doble condicion: que la publicacion lo autorice **y** que tenga
@@ -150,22 +170,6 @@ export function servicios(property: Property): Servicio[] {
     { clave: 'amueblado', etiqueta: 'Amueblado', incluido: property.furnished === true },
     { clave: 'mascotas', etiqueta: 'Admite mascotas', incluido: property.pets_allowed === true },
   ];
-}
-
-/**
- * Si aparece el boton de WhatsApp.
- *
- * **Siempre `false` hoy**, y no por prudencia: la API no manda
- * telefono. `Property` ni siquiera tiene el campo.
- *
- * Cuando exista RF-2.5 completo habra que decidir tambien el otro
- * lado de la ecuacion --si el telefono es privado, el boton no
- * aparece-- y esa condicion va **antes** que esta. Anotado aqui para
- * que no se pierda: un boton de WhatsApp que sale cuando el contacto
- * es privado es una fuga de datos en un boton.
- */
-export function puedeWhatsApp(_property: Property): boolean {
-  return false;
 }
 
 /** Como se leen los contadores. "1 habitación", no "1 habitaciones". */
