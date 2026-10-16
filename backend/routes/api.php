@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\AdminPropertyController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\MyPropertyController;
@@ -126,7 +127,15 @@ Route::middleware(['throttle:api', 'auth:sanctum'])->group(function (): void {
      | Estas dos rutas son el unico camino por el que una publicacion
      | se vuelve visible. Sin ellas, publicar no cierra de punta a
      | punta: nadie veria nunca un inmueble nuevo.
+     |
+     | Y la cola de arriba es lo que las hace usables: sin una forma de
+     | saber *cual* hay que moderar, aprobar y rechazar solo funcionan si
+     | el administrador ya conoce el id de la publicacion.
      */
+    Route::get('/admin/properties', [AdminPropertyController::class, 'index'])
+        ->middleware('role:admin')
+        ->name('api.admin.properties.index');
+
     Route::post('/properties/{property}/approve', [MyPropertyController::class, 'approve'])
         ->middleware('role:admin')
         ->name('api.properties.approve');

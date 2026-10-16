@@ -10,11 +10,13 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Modules\Identity\Enums\UserRole;
 use Modules\Identity\Notifications\VerifyEmailNotification;
+use Modules\Properties\Models\Property;
 
 /*
  * `MustVerifyEmail` son DOS cosas con el mismo nombre: el contrato de
@@ -143,5 +145,23 @@ class User extends Authenticatable implements MustVerifyEmail
     private function rolEfectivo(): UserRole
     {
         return $this->role ?? UserRole::porDefecto();
+    }
+
+    /**
+     * Las publicaciones de esta cuenta. El inverso de
+     * `Property::dueno()`.
+     *
+     * Se nombra `publicaciones` y no `properties` porque es la
+     * convencion del modulo y porque "propiedades" en espanol tambien
+     * significa las casas y apartamentos, no los objetos de Laravel.
+     *
+     * Vive aca y no solo en Properties porque RF-7.1 lo necesita desde
+     * el otro lado: la cola de moderacion cuenta cuantos anuncios tiene
+     * una cuenta y cuantos fueron aceptados, y son preguntas sobre la
+     * cuenta, no sobre el inmueble.
+     */
+    public function publicaciones(): HasMany
+    {
+        return $this->hasMany(Property::class, 'user_id');
     }
 }

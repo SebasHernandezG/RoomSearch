@@ -17,6 +17,7 @@ import PantallaBusqueda from './components/PantallaBusqueda';
 import PantallaIngreso from './components/PantallaIngreso';
 import PantallaDetalle from './components/detalle/PantallaDetalle';
 import FormularioPublicar from './components/publicar/FormularioPublicar';
+import PantallaModeracion from './components/moderacion/PantallaModeracion';
 import { ProveedorAvisos } from './components/ProveedorAvisos';
 import { ProveedorSesion, useSesion } from './components/SesionContexto';
 
@@ -61,6 +62,16 @@ function Rutas() {
       <Route path="/entrar" element={<PantallaIngreso modo="entrar" />} />
       <Route path="/crear-cuenta" element={<PantallaIngreso modo="registro" />} />
       <Route path="/publicar" element={<FormularioPublicar />} />
+
+      {/*
+        La moderacion no se protege por ruta.
+
+        El backend responde 403 y la pantalla lo dice, porque el rol
+        vive en el token y no en la navegacion: protegerla aqui exigiria
+        una peticion extra para nada, y durante la comprobacion del
+        token se veria un "no tenes permiso" a alguien que si lo tiene.
+      */}
+      <Route path="/moderacion" element={<PantallaModeracion />} />
 
       {/*
         El `slug` del distrito se acepta pero no se usa.
