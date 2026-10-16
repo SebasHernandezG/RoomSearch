@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -147,6 +148,19 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->role ?? UserRole::porDefecto();
     }
 
+    /**
+     * El perfil publico de esta cuenta, si es arrendador.
+     *
+     * `hasOne` y no `hasOneOrCreate`: el perfil se crea cuando la
+     * persona lo completa, no al registrarse. Crearlo vacio haria que
+     * todo inquilino pareciera un arrendador sin datos.
+     */
+    public function perfilArrendador(): HasOne
+    {
+        return $this->hasOne(LandlordProfile::class);
+    }
+
+    /**
     /**
      * Las publicaciones de esta cuenta. El inverso de
      * `Property::dueno()`.
