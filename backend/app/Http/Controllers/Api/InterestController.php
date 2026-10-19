@@ -19,6 +19,8 @@ use Modules\Properties\Enums\InterestStatus;
 use Modules\Properties\Enums\PropertyStatus;
 use Modules\Properties\Models\Interest;
 use Modules\Properties\Models\Property;
+use App\Notifications\NewInterestNotification;
+use App\Notifications\InterestRepliedNotification;
 
 /**
  * "Me interesa": la solicitud, la bandeja del dueno y la respuesta. RF-5.1.
@@ -126,7 +128,16 @@ class InterestController extends Controller
             return $this->duplicado($existente);
         }
 
-        $interes->load(['inmueble.imagenes', 'interesado']);
+        $interes->load(['inmueble.imagenes', 'interesado', 'inmueble.dueno']);
+
+        /*
+         * Aviso al arrendador de que llego una solicitud nueva.
+         * Va en la cola: crear la solicitud no espera al SMTP.
+         */
+        $dueno = $interes->inmueble->dueno;
+        if ($dueno !== null) {
+            $dueno->notify(new NewInterestNotification($interes, $interes->inmueble));
+        }
 
         return (new InterestResource($interes))->response()->setStatusCode(201);
     }
@@ -216,6 +227,15 @@ class InterestController extends Controller
             ...$request->safe()->only(['reply', 'status']),
             'replied_at' => now(),
         ]);
+
+        /*
+         * Aviso al interesado de que el arrendador respondio.
+         * Va en la cola: responder no espera al SMTP.
+         */
+        $interesado = $interes->interesado;
+        if ($interesado !== null) {
+            $interesado->notify(new InterestRepliedNotification($interes));
+        }
 
         return new InterestForDuenoResource($interes->refresh()->load('inmueble.imagenes'));
     }

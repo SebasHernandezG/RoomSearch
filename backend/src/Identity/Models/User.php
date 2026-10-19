@@ -17,6 +17,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Modules\Identity\Enums\UserRole;
 use Modules\Identity\Notifications\VerifyEmailNotification;
+use Modules\Identity\Models\NotificationPreference;
 use Modules\Properties\Models\Interest;
 use Modules\Properties\Models\Property;
 
@@ -147,6 +148,17 @@ class User extends Authenticatable implements MustVerifyEmail
     private function rolEfectivo(): UserRole
     {
         return $this->role ?? UserRole::porDefecto();
+    }
+
+    /**
+     * Las preferencias de notificacion de esta cuenta. RF-5.4.
+     *
+     * `hasOne` y no `hasMany`: una fila por usuario, y si no existe
+     * aun se crea con los defaults al acceder la primera vez.
+     */
+    public function notificationPreference(): HasOne
+    {
+        return $this->hasOne(NotificationPreference::class);
     }
 
     /**

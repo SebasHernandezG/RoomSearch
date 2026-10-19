@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\InterestController;
 use App\Http\Controllers\Api\LandlordProfileController;
 use App\Http\Controllers\Api\MyPropertyController;
+use App\Http\Controllers\Api\NotificationUnsubscribeController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PropertyController;
 use App\Http\Controllers\Api\PropertyImageController;
@@ -97,6 +98,16 @@ Route::middleware('throttle:api')->group(function (): void {
 
     Route::post('/reset-password', [PasswordResetController::class, 'reset'])
         ->name('api.reset-password');
+
+    /*
+     | Baja de notificaciones. RF-5.4, RNF-08.
+     |
+     | El enlace de cada correo lleva `user`, `type` y `token`.
+     | No lleva sesion: cualquiera con el enlace puede darse de baja,
+     | y siempre responde 200 para no servir de enumeracion de cuentas.
+     */
+    Route::get('/notifications/unsubscribe', [NotificationUnsubscribeController::class, '__invoke'])
+        ->name('api.notifications.unsubscribe');
 });
 
 /*
