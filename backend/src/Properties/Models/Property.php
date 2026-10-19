@@ -141,6 +141,20 @@ class Property extends Model
     }
 
     /**
+     * Las solicitudes de "Me interesa" sobre este inmueble. RF-5.1.
+     *
+     * El inverso de `Interest::inmueble()`.
+     *
+     * `user_id` en la FK y no `dueno_id`: en `interests` la columna
+     * es la del interesado, y las dos relaciones de `Property` --la
+     * del dueno y esta-- no pueden mirar la misma columna.
+     */
+    public function intereses(): HasMany
+    {
+        return $this->hasMany(Interest::class, 'property_id');
+    }
+
+    /**
      * Las fotos de este inmueble. RF-2.3.
      *
      * El orden va en la relacion y no en cada consulta porque la

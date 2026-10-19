@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Modules\Properties\Models\Interest;
+use Modules\Properties\Models\InterestPolicy;
 use Modules\Properties\Models\Property;
 use Modules\Properties\Models\PropertyPolicy;
 
@@ -36,6 +38,15 @@ class AppServiceProvider extends ServiceProvider
          * autorizaciones pasan, silenciosamente.
          */
         Gate::policy(Property::class, PropertyPolicy::class);
+
+        /*
+         * La de las solicitudes. Va registrada a mano y no por
+         * convencion porque la clase esta junto al modelo y no en
+         * `app/Policies`, y porque el metodo se llama `responder` y
+         * no `update`: se nombra segun lo que hace, no segun el verbo
+         * HTTP.
+         */
+        Gate::policy(Interest::class, InterestPolicy::class);
     }
 
     /**
