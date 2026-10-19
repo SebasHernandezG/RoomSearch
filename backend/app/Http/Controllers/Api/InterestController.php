@@ -9,6 +9,8 @@ use App\Http\Requests\Api\ReplyInterestRequest;
 use App\Http\Requests\Api\StoreInterestRequest;
 use App\Http\Resources\InterestForDuenoResource;
 use App\Http\Resources\InterestResource;
+use App\Notifications\InterestRepliedNotification;
+use App\Notifications\NewInterestNotification;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,8 +22,6 @@ use Modules\Properties\Enums\PropertyStatus;
 use Modules\Properties\Models\Interest;
 use Modules\Properties\Models\InterestIntent;
 use Modules\Properties\Models\Property;
-use App\Notifications\NewInterestNotification;
-use App\Notifications\InterestRepliedNotification;
 
 /**
  * "Me interesa": la solicitud, la bandeja del dueno y la respuesta. RF-5.1.
@@ -84,27 +84,25 @@ class InterestController extends Controller
         /*
          * Anti-spam: limite diario de intereses. RF-5.6.
          *
-         * Las cuentas admin no tienen limite: pueden gestionar
-         * solicitudes sin que el corte les afecte.
+         * Se registra cada intento aunque sea admin (para tener
+         * historial), pero el limite no se aplica a admin.
          */
-        if (! $persona->isAdmin()) {
-            $resultado = InterestIntent::registrarIntento(
-                $persona->getKey(),
-                $request->ip(),
-                $property->getKey(),
-            );
+        $resultado = InterestIntent::registrarIntento(
+            $persona->getKey(),
+            $request->ip(),
+            $property->getKey(),
+        );
 
-            if (! $resultado['dentroDelLimite']) {
-                return response()->json([
-                    'message' => 'Has alcanzado el limite diario de mensajes. Intentalo manana.',
-                    'errors' => [
-                        'property_id' => [
-                            'Limite diario alcanzado: '.$resultado['intentos'].' de '.$resultado['limite'].'.',
-                        ],
+        if (! $persona->isAdmin() && ! $resultado['dentroDelLimite']) {
+            return response()->json([
+                'message' => 'Has alcanzado el limite diario de mensajes. Intentalo manana.',
+                'errors' => [
+                    'property_id' => [
+                        'Limite diario alcanzado: '.$resultado['intentos'].' de '.$resultado['limite'].'.',
                     ],
-                    'retry_after' => 86400,
-                ], 429);
-            }
+                ],
+                'retry_after' => 86400,
+            ], 429);
         }
 
         $existente = Interest::query()
