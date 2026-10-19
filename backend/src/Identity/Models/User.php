@@ -17,6 +17,8 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Modules\Identity\Enums\UserRole;
 use Modules\Identity\Notifications\VerifyEmailNotification;
+use Modules\Identity\Models\NotificationPreference;
+use Modules\Properties\Models\Interest;
 use Modules\Properties\Models\Property;
 
 /*
@@ -146,6 +148,34 @@ class User extends Authenticatable implements MustVerifyEmail
     private function rolEfectivo(): UserRole
     {
         return $this->role ?? UserRole::porDefecto();
+    }
+
+    /**
+     * Las preferencias de notificacion de esta cuenta. RF-5.4.
+     *
+     * `hasOne` y no `hasMany`: una fila por usuario, y si no existe
+     * aun se crea con los defaults al acceder la primera vez.
+     */
+    public function notificationPreference(): HasOne
+    {
+        return $this->hasOne(NotificationPreference::class);
+    }
+
+    /**
+     * Las solicitudes de "Me interesa" que mandó esta cuenta. RF-5.1.
+     *
+     * El inverso de `Interest::interesado()`. Vive acá y no solo en
+     * Properties porque "mis solicitudes" es una pregunta sobre la
+     * cuenta: es lo que la persona consulta para leer las respuestas.
+     *
+     * Se llama `interesesEnviados()` y no `intereses()` a propósito:
+     * un arrendador también tiene `intereses()`through sus
+     * inmuebles, y un nombre igual en los dos lados se vuelve
+     * imposible de distinguir leyendo una consulta.
+     */
+    public function interesesEnviados(): HasMany
+    {
+        return $this->hasMany(Interest::class, 'user_id');
     }
 
     /**
