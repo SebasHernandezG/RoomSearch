@@ -18,6 +18,7 @@ use Modules\Identity\Models\User;
 use Modules\Properties\Enums\InterestStatus;
 use Modules\Properties\Enums\PropertyStatus;
 use Modules\Properties\Models\Interest;
+use Modules\Properties\Models\InterestIntent;
 use Modules\Properties\Models\Property;
 use App\Notifications\NewInterestNotification;
 use App\Notifications\InterestRepliedNotification;
@@ -78,6 +79,32 @@ class InterestController extends Controller
                 'message' => 'Este anuncio es tuyo. Para compartirlo, publica otro.',
                 'errors' => ['property_id' => ['Este anuncio es tuyo.']],
             ], 422);
+        }
+
+        /*
+         * Anti-spam: limite diario de intereses. RF-5.6.
+         *
+         * Las cuentas admin no tienen limite: pueden gestionar
+         * solicitudes sin que el corte les afecte.
+         */
+        if (! $persona->isAdmin()) {
+            $resultado = InterestIntent::registrarIntento(
+                $persona->getKey(),
+                $request->ip(),
+                $property->getKey(),
+            );
+
+            if (! $resultado['dentroDelLimite']) {
+                return response()->json([
+                    'message' => 'Has alcanzado el limite diario de mensajes. Intentalo manana.',
+                    'errors' => [
+                        'property_id' => [
+                            'Limite diario alcanzado: '.$resultado['intentos'].' de '.$resultado['limite'].'.',
+                        ],
+                    ],
+                    'retry_after' => 86400,
+                ], 429);
+            }
         }
 
         $existente = Interest::query()
