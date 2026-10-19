@@ -5,8 +5,10 @@ declare(strict_types=1);
 use App\Http\Controllers\Api\AdminPropertyController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EmailVerificationController;
+use App\Http\Controllers\Api\InterestController;
 use App\Http\Controllers\Api\LandlordProfileController;
 use App\Http\Controllers\Api\MyPropertyController;
+use App\Http\Controllers\Api\NotificationUnsubscribeController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PropertyController;
 use App\Http\Controllers\Api\PropertyImageController;
@@ -96,6 +98,16 @@ Route::middleware('throttle:api')->group(function (): void {
 
     Route::post('/reset-password', [PasswordResetController::class, 'reset'])
         ->name('api.reset-password');
+
+    /*
+     | Baja de notificaciones. RF-5.4, RNF-08.
+     |
+     | El enlace de cada correo lleva `user`, `type` y `token`.
+     | No lleva sesion: cualquiera con el enlace puede darse de baja,
+     | y siempre responde 200 para no servir de enumeracion de cuentas.
+     */
+    Route::get('/notifications/unsubscribe', [NotificationUnsubscribeController::class, '__invoke'])
+        ->name('api.notifications.unsubscribe');
 });
 
 /*
@@ -150,6 +162,40 @@ Route::middleware(['throttle:api', 'auth:sanctum'])->group(function (): void {
 
     Route::post('/properties/{property}/rented', [MyPropertyController::class, 'markRented'])
         ->name('api.properties.rented');
+
+    /*
+     | "Me interesa". RF-5.1.
+     |
+     | Cuatro rutas y tres preguntas distintas:
+     |
+     | - `POST /properties/{id}/interests` **manda** la solicitud, y
+     |   cuelga del inmueble porque solo tiene sentido sobre uno.
+     | - `GET /my/interests` es la **bandeja del dueno**: las
+     |   solicitudes sobre sus anuncios, con el nombre de quien
+     |   escribio. Sin esto el dueno no sabe a quien tiene que
+     |   responder.
+     | - `GET /interests` son **mis solicitudes**: las que mande yo,
+     |   con la respuesta. Va sin `/my` porque el recurso ya dice de
+     |   quien es --es el unico que puede verlas-- y `my` aqui seria
+     |   redundante.
+     | - `PATCH /interests/{id}` responde o descarta. Es una sola ruta
+     |   y no dos porque el cuerpo es el mismo y la unica diferencia
+     |   es el valor de `status`.
+     |
+     | Las dos listas comparten recurso y no son la misma pantalla:
+     | una necesita el nombre del interesado y la otra la respuesta.
+     */
+    Route::post('/properties/{property}/interests', [InterestController::class, 'store'])
+        ->name('api.properties.interests.store');
+
+    Route::get('/my/interests', [InterestController::class, 'bandeja'])
+        ->name('api.my.interests');
+
+    Route::get('/interests', [InterestController::class, 'mias'])
+        ->name('api.interests.mias');
+
+    Route::patch('/interests/{interes}', [InterestController::class, 'update'])
+        ->name('api.interests.update');
 
     /*
      | Fotografias. RF-2.3.
