@@ -9,9 +9,11 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 use Modules\Identity\Models\User;
+use Modules\Properties\Enums\Amenity;
 use Modules\Properties\Enums\Currency;
 use Modules\Properties\Enums\PropertyStatus;
 use Modules\Properties\Enums\PropertyType;
@@ -168,6 +170,16 @@ class Property extends Model
         return $this->hasMany(PropertyImage::class, 'property_id')
             ->orderByDesc('is_primary')
             ->orderBy('position');
+    }
+
+    /**
+     * Las amenidades de este inmueble. RF-2.2.
+     *
+     * Many-to-many a traves de `property_amenities`.
+     */
+    public function amenities(): BelongsToMany
+    {
+        return $this->belongsToMany(Amenity::class, 'property_amenities');
     }
 
     /**
