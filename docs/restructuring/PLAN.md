@@ -1,6 +1,6 @@
 # RoomSearch: plan de reestructuración
 
-Fecha: 10 de noviembre de 2026. Estado: plan por etapas con la primera intervención de búsqueda y limpieza de ramas en curso. No equivale a una aplicación validada ni a una instalación de BMAD.
+Fecha: 10 de noviembre de 2026. Estado: plan por etapas; la primera intervención de búsqueda está en la rama `codex/roomsearch-mobile-restructure` y PR #106 está abierto. No equivale a una aplicación validada ni a una instalación de BMAD.
 
 ## 1. Producto y alcance
 
@@ -63,6 +63,8 @@ Moderación: lista de pendientes, revisar detalle, aprobar/rechazar con motivo y
 
 Diseño funcional: jerarquía precio → fotografía → barrio → condiciones, texto español claro, CRC por defecto; no sumar ni comparar monedas como si fueran iguales. Objetivos táctiles de 44 px, controles visibles con teclado, foco restaurado al cerrar modal, contraste WCAG AA, reducción de movimiento. Probar 360, 390 y 430 px de ancho y escritorio; teclado virtual, safe areas y orientación horizontal. La identidad visual final y sus tokens se fijan en la primera historia de interfaz, sin bloquear arquitectura.
 
+Responsable de escritorio: asignar a Sol una revisión acotada de búsqueda, detalle y mapa en 1280 y 1440 px, después de cerrar el recorrido móvil de cada historia. Verificar disposición, filtros, teclado, foco, selección de marcadores y errores de teselas; corregir defectos en el mismo PR. Luna puede reunir capturas y resultados si Sol necesita evidencia adicional. Esta validación es obligatoria antes de dar S03, S04 o S07 por terminados.
+
 ## 5. Estado y contratos de búsqueda
 
 Una única fuente de filtros aplicados. Estados: inicial, cargando, resultados, vacío, error y resultados anteriores con aviso. Cancelar solicitudes anteriores con AbortController y descartar respuestas cuyo identificador no sea el vigente. Un error nunca se presenta como cero viviendas.
@@ -92,8 +94,8 @@ Cada historia termina con demo reproducible, pruebas pertinentes y PR pequeño; 
 | S00 Base reproducible | Instalar desde lockfiles, levantar MySQL aislado, ejecutar CI y documentar arranque | Ninguna | Un clon limpio inicia; pruebas existentes y build pasan; fallos previos registrados |
 | S01 Alcance geográfico | Curar barrios/polígono y service_area; estrategia de backfill | S00 | Dentro, fuera y borde probados; datos antiguos sin clasificación no se publican accidentalmente |
 | S02 Contrato y privacidad | OpenAPI, consultas públicas, paginación y representación aproximada | S01 | JSON público sin coordenadas privadas; filtros coherentes; pruebas MySQL reales |
-| S03 Flujo móvil de búsqueda | Shell, lista, filtros, URL y detalle mínimo con datos reales | S02 | Buscar/filtrar/volver a 360 px funciona con teclado y sin mapa |
-| S04 Mapa propio de producto | MapCanvas, marcadores de precio, selección y Buscar en esta zona | S03 | Sin bucles ni respuestas antiguas; panning no borra selección sin explicación; fallo de tiles conserva lista |
+| S03 Flujo móvil de búsqueda | Shell, lista, filtros, URL y detalle mínimo con datos reales | S02 | Buscar/filtrar/volver a 360 px y 1280 px funciona con teclado y sin mapa |
+| S04 Mapa propio de producto | MapCanvas, marcadores de precio, selección y Buscar en esta zona | S03 | Validado en móvil y 1440 px; sin bucles ni respuestas antiguas; panning no borra selección sin explicación; fallo de tiles conserva lista |
 | S05 Publicación completa | Acceso, borrador, fotos, validación y estados | S02, S03 | Anunciante crea desde teléfono, recupera borrador y no puede autoaprobar |
 | S06 Moderación y contacto | Decisión auditada, reporte, WhatsApp consentido | S05, S04 | Publicar → aprobar → encontrar → contactar; rechazar/pausar elimina visibilidad |
 | S07 Estabilidad | E2E, accesibilidad, rendimiento, fallos/red lenta, privacidad | S06 | Todos los recorridos críticos pasan; cero defectos bloqueantes abiertos |
@@ -103,9 +105,9 @@ Estimación de planificación: 4–6 semanas con una persona de dedicación sost
 
 ## 8. Estrategia de ramas y migración
 
-Base: origin/main; nueva rama codex/roomsearch-mobile-plan para documentación y ramas cortas codex/<historia> al implementar. No fusionar todo el trabajo pendiente como requisito para empezar.
+Base: origin/main; la rama de trabajo actual es `codex/roomsearch-mobile-restructure` y su PR #106 hacia `main` sigue abierto. Usar ramas cortas `codex/<historia>` al implementar. No fusionar todo el trabajo pendiente como requisito para empezar.
 
-El 10 de noviembre de 2026 se cerraron #101–#105 y se eliminaron sus ramas remotas, además de `archivo/produccion`. GitHub quedó con `main` como única rama remota y ningún PR abierto. Sus commits están en el bundle local `../RoomSearch-branches-2026-11-10.bundle`, verificado con `git bundle verify`; copiarlo fuera de este equipo para respaldo duradero. Las funciones de interés/correo quedan fuera del MVP propuesto y solo se recuperarían mediante revisión selectiva.
+El 10 de noviembre de 2026 se cerraron #101–#105 y se eliminaron sus ramas remotas, además de `archivo/produccion`. Actualmente `main` y `codex/roomsearch-mobile-restructure` son las ramas remotas; PR #106 está abierto. Los commits anteriores están en el bundle local `../RoomSearch-branches-2026-11-10.bundle`, verificado con `git bundle verify`; copiarlo fuera de este equipo para respaldo duradero. Las funciones de interés/correo quedan fuera del MVP propuesto y solo se recuperarían mediante revisión selectiva.
 
 Migraciones aditivas primero: área y ubicación pública inicialmente compatibles, backfill por lotes verificables, comparación de conteos, luego restricciones. No hacer migrate:fresh contra datos compartidos. Activar nueva búsqueda mediante bandera; volver al cliente anterior si aparece regresión. Cambios destructivos se posponen hasta respaldo y verificación del nuevo flujo.
 
@@ -123,4 +125,4 @@ Instrucción para Sol: leer este plan, README, backend/AGENTS.md completo y regl
 
 ## 11. Límites de esta evaluación
 
-Se inspeccionaron fuentes de búsqueda/mapa, convenciones de API y módulos, workflow CI y el historial remoto descrito en la conversación. La ejecución CI 42958439856 pasó frontend (TypeScript, pruebas, lint, formato y build) y backend (Pint, pruebas sobre MySQL y auditoría Composer) tras actualizar el lockfile de Symfony. Docker Desktop local no respondió, pero la prueba nueva de backend sí corrió en CI. No se hizo una auditoría visual en dispositivo ni se validó el polígono de cobertura. No afirmar estabilidad, cobertura total, aprobación visual ni cumplimiento legal basándose en este documento.
+Se inspeccionaron fuentes de búsqueda/mapa, convenciones de API y módulos, workflow CI y el historial remoto descrito en la conversación. La ejecución CI 42958634962 asociada a PR #106 pasó frontend (TypeScript, pruebas, lint, formato y build) y backend (Pint, pruebas sobre MySQL y auditoría Composer). Esto aporta evidencia parcial para S00, pero no demuestra todavía que un clon limpio pueda arrancar: Docker Desktop local no respondió. No se hizo una auditoría visual en dispositivo ni se validó el polígono de cobertura. No afirmar estabilidad, cobertura total, aprobación visual ni cumplimiento legal basándose en este documento.
