@@ -19,7 +19,6 @@
 import { useEffect, useId, useRef } from 'react';
 
 import { nombreOrden, quitarTodos, type Filtros } from '../../lib/filtros';
-import { DISTRITOS } from '../publicar/datos';
 
 type Props = {
   filtros: Filtros;
@@ -48,9 +47,7 @@ type Props = {
 
 const TIPOS = [
   { valor: 'apartamento', etiqueta: 'Apartamento' },
-  { valor: 'casa', etiqueta: 'Casa' },
   { valor: 'habitacion', etiqueta: 'Habitación' },
-  { valor: 'estudio', etiqueta: 'Estudio' },
 ];
 
 const HABITACIONES = [1, 2, 3, 4, 5];
@@ -367,26 +364,6 @@ function Controles({
             </button>
           ))}
         </div>
-      </section>
-
-      <section aria-labelledby="distrito">
-        <h3 id="distrito" className="text-small mb-2 font-semibold text-ink">
-          Distrito
-        </h3>
-
-        <select
-          aria-labelledby="distrito"
-          value={filtros.district ?? ''}
-          onChange={(e) => cambiar({ district: e.target.value || undefined })}
-          className="min-h-11 w-full rounded-md border border-edge bg-white px-3 text-body text-ink"
-        >
-          <option value="">Todos los distritos</option>
-          {DISTRITOS.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
       </section>
 
       <section aria-labelledby="extras">

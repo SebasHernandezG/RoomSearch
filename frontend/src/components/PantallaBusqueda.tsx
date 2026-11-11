@@ -1,8 +1,7 @@
 /**
  * Pantalla de busqueda por zona. DS-7.
  *
- * Movil: pestanas de 56 px, el mapa arranca por defecto porque es lo
- * que distingue esta plataforma de un listado clasico.
+ * Movil: la lista abre primero; el mapa queda disponible como otra vista.
  *
  * Escritorio: mapa 55 % izquierda, lista 45 % derecha con scroll
  * propio. La lista nunca pierde el contexto del mapa.
@@ -17,7 +16,7 @@ import ChipsActivos from './filtros/ChipsActivos';
 import PanelFiltros from './filtros/PanelFiltros';
 import PropertyCard from './PropertyCard';
 import { ErrorConexion, SinResultados } from './estadosBusqueda';
-import PropertyMap, { RADIOS, type PuntoZona } from './mapa/PropertyMap';
+import PropertyMap, { type PuntoZona } from './mapa/PropertyMap';
 import SelectorRadio from './mapa/SelectorRadio';
 import { ErrorApi, listarPropiedades, type Filtros as FiltrosApi } from '../lib/api';
 import {
@@ -33,15 +32,14 @@ import type { Property } from '../types/property';
 type Vista = 'mapa' | 'lista';
 type Estado = 'cargando' | 'listo' | 'error';
 
-/** Radio inicial de DS-7: 1 km cubre casi todo San Carlos. */
-const ZONA_INICIAL: PuntoZona = { latitud: 10.3236, longitud: -84.4274, metros: 1000 };
-
 export default function PantallaBusqueda() {
-  const [vista, setVista] = useState<Vista>('mapa');
+  const [vista, setVista] = useState<Vista>('lista');
   const [estado, setEstado] = useState<Estado>('cargando');
+  const [errorBusqueda, setErrorBusqueda] = useState<string | null>(null);
   const [propiedades, setPropiedades] = useState<Property[]>([]);
   const [total, setTotal] = useState(0);
-  const [zona, setZona] = useState<PuntoZona | null>(ZONA_INICIAL);
+  const [zona, setZona] = useState<PuntoZona | null>(null);
+  const [zonaPendiente, setZonaPendiente] = useState<PuntoZona | null>(null);
   const [resaltada, setResaltada] = useState<number | null>(null);
   const [favoritos, setFavoritos] = useState<number[]>([]);
   const [filtros, setFiltros] = useState<Filtros>({});
@@ -64,7 +62,8 @@ export default function PantallaBusqueda() {
    * leer la zona anterior en el momento en que llega la nueva, y leerla
    * del estado lo daria desfasada por un render.
    */
-  const zonaActual = useRef<PuntoZona | null>(ZONA_INICIAL);
+  const zonaActual = useRef<PuntoZona | null>(null);
+  const solicitudActual = useRef(0);
 
   /*
    * Carga contra la API real.
@@ -88,13 +87,17 @@ export default function PantallaBusqueda() {
 
   const cargar = useCallback(
     async (base: FiltrosApi) => {
+      const solicitud = ++solicitudActual.current;
       setEstado('cargando');
+      setErrorBusqueda(null);
 
       try {
         const respuesta = await listarPropiedades({
+          area: 'ciudad-quesada',
           ...filtrosAAjax(filtrosVivos.current),
           ...base,
         });
+        if (solicitud !== solicitudActual.current) return;
 
         setPropiedades(respuesta.data);
         setTotal(respuesta.meta.total);
@@ -112,12 +115,12 @@ export default function PantallaBusqueda() {
         guardarCache(respuesta.meta.total, respuesta.data);
         setDesdeCache(false);
       } catch (error) {
+        if (solicitud !== solicitudActual.current) return;
         // 422 es validacion del cliente: el backend ya explico que esta
         // mal, no es un fallo de conexion al que reintentar.
         if (error instanceof ErrorApi && error.codigo === 422) {
-          setPropiedades([]);
-          setTotal(0);
-          setEstado('listo');
+          setErrorBusqueda(error.message);
+          setEstado('error');
           return;
         }
 
@@ -188,17 +191,17 @@ export default function PantallaBusqueda() {
    * pagina con los chips puestos y la lista sin filtrar.
    */
   useEffect(() => {
-    filtrosVivos.current = filtrosDesdeUrl(window.location.search);
+    const enlace = filtrosDesdeUrl(window.location.search);
+    if (enlace.type && !['habitacion', 'apartamento'].includes(enlace.type)) {
+      delete enlace.type;
+    }
+    delete enlace.district;
+    filtrosVivos.current = enlace;
     setFiltros(filtrosVivos.current);
   }, []);
 
   useEffect(() => {
-    void cargar({
-      lat: ZONA_INICIAL.latitud,
-      lng: ZONA_INICIAL.longitud,
-      radius: ZONA_INICIAL.metros,
-      sort: filtrosVivos.current.sort ?? 'distance',
-    });
+    void cargar({ sort: filtrosVivos.current.sort ?? 'recent' });
   }, [cargar]);
 
   /*
@@ -223,8 +226,7 @@ export default function PantallaBusqueda() {
   }, [espera]);
 
   /*
-   * RF-3.5: debounce de 300 ms al mover el mapa. Sin esto, cada pixel
-   * genera una peticion.
+   * Mover el mapa propone una zona. La búsqueda se confirma con el botón.
    *
    * Ademas se descarta la zona que no cambio de verdad. Ajustar el
    * encuadre al circulo devuelve el centro al mismo sitio, asi que sin
@@ -234,6 +236,14 @@ export default function PantallaBusqueda() {
    */
   const alMoverZona = useCallback(
     (nueva: PuntoZona | null) => {
+      if (nueva === null) {
+        if (temporizador.current !== null) window.clearTimeout(temporizador.current);
+        zonaActual.current = null;
+        setZonaPendiente(null);
+        setZona(null);
+        void cargar({ sort: filtrosVivos.current.sort ?? 'recent' });
+        return;
+      }
       if (nueva && zonaActual.current && sonLaMismaZona(zonaActual.current, nueva)) {
         return;
       }
@@ -243,18 +253,26 @@ export default function PantallaBusqueda() {
       }
 
       temporizador.current = window.setTimeout(() => {
-        zonaActual.current = nueva;
-        setZona(nueva);
-
-        void cargar(
-          nueva
-            ? { lat: nueva.latitud, lng: nueva.longitud, radius: nueva.metros, sort: 'distance' }
-            : {},
-        );
+        setZonaPendiente(nueva);
       }, 300);
     },
     [cargar],
   );
+
+  const buscarEnZona = useCallback(() => {
+    zonaActual.current = zonaPendiente;
+    setZona(zonaPendiente);
+    void cargar(
+      zonaPendiente
+        ? {
+            lat: zonaPendiente.latitud,
+            lng: zonaPendiente.longitud,
+            radius: zonaPendiente.metros,
+            sort: 'distance',
+          }
+        : { sort: filtrosVivos.current.sort ?? 'recent' },
+    );
+  }, [cargar, zonaPendiente]);
 
   useEffect(
     () => () => {
@@ -286,6 +304,7 @@ export default function PantallaBusqueda() {
 
   const cambiarFiltros = useCallback(
     (nuevos: Filtros) => {
+      filtrosVivos.current = nuevos;
       setFiltros(nuevos);
 
       /*
@@ -312,6 +331,7 @@ export default function PantallaBusqueda() {
   );
 
   const visibles = propiedades.map((p) => ({ ...p, is_favorite: favoritos.includes(p.id) }));
+  const seleccionada = visibles.find((p) => p.id === resaltada);
 
   /*
    * Cuantos filtros hay puestos, para el contador del boton flotante.
@@ -324,9 +344,11 @@ export default function PantallaBusqueda() {
 
   const lista = (
     <div className="h-full overflow-y-auto p-4">
-      <div className="rounded-lg border border-line bg-white p-4 shadow-sm">
-        <SelectorRadio valor={zona?.metros ?? RADIOS[1]!} onCambio={cambiarRadio} />
-      </div>
+      {zona && (
+        <div className="rounded-lg border border-line bg-white p-4 shadow-sm">
+          <SelectorRadio valor={zona.metros} onCambio={cambiarRadio} />
+        </div>
+      )}
 
       {/*
         Los chips van **encima** de los resultados, no escondidos en la
@@ -366,13 +388,19 @@ export default function PantallaBusqueda() {
 
       <p className="text-small mt-4 mb-3 text-stone">
         {total === 0
-          ? 'Ningún inmueble en esta zona'
-          : `${total} ${total === 1 ? 'inmueble' : 'inmuebles'} en esta zona`}
+          ? 'Ningún inmueble disponible'
+          : `${total} ${total === 1 ? 'inmueble' : 'inmuebles'} disponible${total === 1 ? '' : 's'}`}
       </p>
 
       {estado === 'cargando' && <Cargando cantidad={3} />}
 
-      {estado === 'error' && (
+      {estado === 'error' && errorBusqueda && (
+        <p role="alert" className="rounded-md border border-clay bg-sand p-4 text-ink">
+          {errorBusqueda}
+        </p>
+      )}
+
+      {estado === 'error' && !errorBusqueda && (
         <ErrorConexion
           onReintentar={() =>
             zona
@@ -452,8 +480,8 @@ export default function PantallaBusqueda() {
       >
         {(
           [
-            ['mapa', 'Mapa'],
             ['lista', 'Lista'],
+            ['mapa', 'Mapa'],
           ] as const
         ).map(([clave, etiqueta]) => (
           <button
@@ -498,8 +526,17 @@ export default function PantallaBusqueda() {
           role="tabpanel"
           id="panel-mapa"
           aria-labelledby="tab-mapa"
-          className={`h-full min-h-0 ${vista === 'mapa' ? 'block' : 'hidden'} lg:block`}
+          className={`relative h-full min-h-0 ${vista === 'mapa' ? 'block' : 'hidden'} lg:block`}
         >
+          {zonaPendiente && (!zona || !sonLaMismaZona(zonaPendiente, zona)) && (
+            <button
+              type="button"
+              onClick={buscarEnZona}
+              className="absolute left-1/2 top-4 z-[600] min-h-11 -translate-x-1/2 rounded-full bg-forest px-5 font-semibold text-paper shadow-lg"
+            >
+              Buscar en esta zona
+            </button>
+          )}
           <PropertyMap
             className="h-full w-full"
             propiedades={visibles}
@@ -509,6 +546,19 @@ export default function PantallaBusqueda() {
             onMoverZona={alMoverZona}
             onSeleccionar={(id) => setResaltada(id)}
           />
+          {seleccionada && (
+            <div className="absolute inset-x-3 bottom-3 z-[600] mx-auto max-h-[55dvh] max-w-sm overflow-y-auto rounded-lg bg-paper shadow-xl">
+              <button
+                type="button"
+                onClick={() => setResaltada(null)}
+                aria-label="Cerrar inmueble seleccionado"
+                className="absolute right-2 top-2 z-30 min-h-11 min-w-11 rounded-full bg-paper text-ink shadow-sm"
+              >
+                ×
+              </button>
+              <PropertyCard property={seleccionada} />
+            </div>
+          )}
         </section>
 
         <section

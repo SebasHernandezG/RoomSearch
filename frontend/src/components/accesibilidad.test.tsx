@@ -143,7 +143,7 @@ describe('la hoja de filtros', () => {
     return render(
       <PanelFiltros
         variante="hoja"
-        filtros={{ type: 'casa' }}
+        filtros={{ type: 'habitacion' }}
         onCambio={() => undefined}
         abierto={abierto}
         onCerrar={() => undefined}
@@ -224,7 +224,7 @@ describe('la columna de filtros', () => {
     render(
       <PanelFiltros
         variante="columna"
-        filtros={{ type: 'casa' }}
+        filtros={{ type: 'habitacion' }}
         onCambio={() => undefined}
         abierto={false}
         onCerrar={() => undefined}
@@ -233,7 +233,10 @@ describe('la columna de filtros', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Casa' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Habitación' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     expect(screen.getByRole('button', { name: 'Apartamento' })).toHaveAttribute(
       'aria-pressed',
       'false',

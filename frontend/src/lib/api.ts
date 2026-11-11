@@ -27,6 +27,7 @@ export type RespuestaPaginada<T> = {
 };
 
 export type Filtros = {
+  area?: 'ciudad-quesada';
   lat?: number;
   lng?: number;
   radius?: number;

@@ -202,18 +202,9 @@ mas grande.
 
 ---
 
-## Conflicto sin resolver en DS-7
+## Búsqueda confirmada en el mapa
 
-DS-7 pide un botón flotante "Buscar en esta zona" **después de mover el
-mapa**, o sea búsqueda confirmada. RF-3.5 pide búsqueda automática con
-debounce de 300 ms al mover. Las dos cosas no pueden ser verdad a la
-vez.
-
-Hoy están las dos: la búsqueda sale sola y el botón vuelve a pedir la
-zona actual. El botón **no está de adorno** — es el reintento manual,
-y es lo único que queda pulsable cuando la búsqueda automática se
-frenó por un 429 o falló.
-
-Hay que decidir cuál manda y ajustar el issue #51. Mientras tanto, si
-cambiar el comportamiento, **no lo borres**: la primera versión del
-botón solo se ocultaba a sí mismo, que es peor que no tenerlo.
+La lista abre sin radio. Mover el mapa crea una zona pendiente; solo
+"Buscar en esta zona" confirma la nueva consulta. El debounce de 300 ms
+reduce actualizaciones visuales de la zona pendiente, no hace peticiones.
+La zona confirmada sigue siendo la que filtra y dibuja el círculo.

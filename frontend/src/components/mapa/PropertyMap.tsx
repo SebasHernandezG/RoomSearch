@@ -268,11 +268,8 @@ export default function PropertyMap({
         if (!instancia) return;
 
         /*
-         * `setView` dispara `moveend`, y el manejador de arriba avisa al
-         * padre con la zona nueva. Deliberado: la persona acaba de
-         * decidir que quiere buscar aqui, asi que la peticion sale sola.
-         * Ese es el mismo motivo por el que no hay boton de "buscar":
-         * no existe un estado de "movido y sin buscar".
+         * `setView` dispara `moveend`, y el padre muestra la zona pendiente.
+         * La persona confirma la consulta con "Buscar en esta zona".
          *
          * NO se usa `ajustarVista`, que es lo que se usa cuando el
          * movimiento lo hace el codigo. Marcar esto como ajuste
@@ -320,7 +317,10 @@ export default function PropertyMap({
       const marcador = marcadores.current.get(resaltada);
       const lat = marcador?.getLatLng();
       if (lat && mapa.current) {
-        mapa.current.panTo(lat, { animate: false });
+        const instancia = mapa.current;
+        ajustesEnCurso.add(instancia);
+        instancia.panTo(lat, { animate: false });
+        window.setTimeout(() => ajustesEnCurso.delete(instancia), 0);
         marcador?.openPopup();
       }
     }
