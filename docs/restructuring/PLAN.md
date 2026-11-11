@@ -63,7 +63,7 @@ Moderación: lista de pendientes, revisar detalle, aprobar/rechazar con motivo y
 
 Diseño funcional: jerarquía precio → fotografía → barrio → condiciones, texto español claro, CRC por defecto; no sumar ni comparar monedas como si fueran iguales. Objetivos táctiles de 44 px, controles visibles con teclado, foco restaurado al cerrar modal, contraste WCAG AA, reducción de movimiento. Probar 360, 390 y 430 px de ancho y escritorio; teclado virtual, safe areas y orientación horizontal. La identidad visual final y sus tokens se fijan en la primera historia de interfaz, sin bloquear arquitectura.
 
-Responsable de escritorio: asignar a Sol una revisión acotada de búsqueda, detalle y mapa en 1280 y 1440 px, después de cerrar el recorrido móvil de cada historia. Verificar disposición, filtros, teclado, foco, selección de marcadores y errores de teselas; corregir defectos en el mismo PR. Luna puede reunir capturas y resultados si Sol necesita evidencia adicional. Esta validación es obligatoria antes de dar S03, S04 o S07 por terminados.
+Responsable de móvil y escritorio: el rol `frontend` (Sol) diseña, implementa y valida ambos tamaños en la misma historia; desktop no es una revisión posterior al cierre móvil. Probar 1280 y 1440 px además de los anchos móviles, con disposición deliberada de lista/mapa, filtros, teclado, foco, selección y fallos de teselas; corregir defectos en el mismo PR. `qa_release` (Luna, con escalamiento a Sol para revisión técnica) verifica evidencia. Aplica a toda historia de interfaz, incluidas publicación y moderación. Roles, contratos y secuencia: [AGENT_ROLES.md](AGENT_ROLES.md).
 
 ## 5. Estado y contratos de búsqueda
 
@@ -121,7 +121,7 @@ Staging debe usar HTTPS, proxy configurado, secretos fuera del repo, storage per
 
 Esta carpeta es el paquete de planificación del proyecto existente: alcance → decisiones → historias → verificación. BMAD no está instalado y no se ejecutó un workflow oficial en esta sesión. Al integrarlo, fijar versión y mapear estos documentos a su formato; no generar un PRD paralelo contradictorio. Fuente del método: https://bmadcode.com/method.
 
-Instrucción para Sol: leer este plan, README, backend/AGENTS.md completo y reglas aplicables. Empezar solo por S00. Confirmar estado Git y preservar cambios de terceros. Entregar una historia por vez con archivos cambiados, comandos ejecutados, resultado y limitaciones. No inventar barrios/polígonos, credenciales, precios ni resultados de pruebas. No contratar, desplegar o fusionar sin autorización correspondiente. Después de S00, implementar S01 y S02 antes de rediseñar la búsqueda.
+Instrucción para Sol: leer AGENTS.md de la raíz, este plan, README, backend/AGENTS.md completo y reglas aplicables. Usar el encargo S00 de [AGENT_ROLES.md](AGENT_ROLES.md), que define el equipo mínimo, modelos, entregas y escalamiento. Confirmar estado Git y preservar cambios de terceros. Entregar una historia por vez con archivos cambiados, comandos ejecutados, resultado y limitaciones. No inventar barrios/polígonos, credenciales, precios ni resultados de pruebas. No contratar, desplegar o fusionar sin autorización correspondiente. Después de S00, implementar S01 y S02 antes de rediseñar la búsqueda.
 
 ## 11. Límites de esta evaluación
 
