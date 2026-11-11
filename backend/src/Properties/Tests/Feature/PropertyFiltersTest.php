@@ -25,6 +25,30 @@ class PropertyFiltersTest extends TestCase
 {
     use RefreshDatabase;
 
+    #[Test]
+    public function el_area_de_lanzamiento_solo_muestra_habitaciones_y_apartamentos_de_ciudad_quesada(): void
+    {
+        $habitacion = Property::factory()->activa()->create(['district' => 'Ciudad Quesada', 'type' => 'habitacion']);
+        $apartamento = Property::factory()->activa()->create(['district' => 'Ciudad Quesada', 'type' => 'apartamento']);
+        $fuera = Property::factory()->activa()->create(['district' => 'La Fortuna', 'type' => 'habitacion']);
+        $otroTipo = Property::factory()->activa()->create(['district' => 'Ciudad Quesada', 'type' => 'casa']);
+
+        $encontrados = $this->filtrar('area=ciudad-quesada');
+
+        $this->assertContains($habitacion->id, $encontrados);
+        $this->assertContains($apartamento->id, $encontrados);
+        $this->assertNotContains($fuera->id, $encontrados);
+        $this->assertNotContains($otroTipo->id, $encontrados);
+    }
+
+    #[Test]
+    public function rechaza_un_area_desconocida(): void
+    {
+        $this->getJson('/api/properties?area=otra-ciudad')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('area');
+    }
+
     private function conPrecio(int $precio, string $moneda = 'CRC'): Property
     {
         return Property::factory()->activa()->create([

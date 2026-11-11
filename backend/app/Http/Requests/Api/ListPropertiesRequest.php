@@ -52,6 +52,7 @@ class ListPropertiesRequest extends FormRequest
             ],
 
             // RF-4.1: filtros. Todos opcionales y combinables.
+            'area' => ['nullable', Rule::in(['ciudad-quesada'])],
             'type' => ['nullable', Rule::enum(PropertyType::class)],
             'min_rent' => ['nullable', 'integer', 'min:0'],
 

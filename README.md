@@ -41,39 +41,32 @@ ejemplos en [`backend/.ai/rules/modulos.md`](backend/.ai/rules/modulos.md).
 
 ## Ramas
 
-**`main` es la única rama activa.** Todo entra por pull request.
+**`main` es la única rama remota permanente.** Cada cambio se trabaja en
+una rama corta, con un solo objetivo y su propio PR. Tras fusionarlo, se
+elimina la rama. Evitamos mantener varias ramas encadenadas abiertas.
 
 ```
 main
  └── feature/mi-cambio      <- se abre contra main, se borra al fusionar
 ```
 
-Tres reglas, y las tres ha servido para algo:
+Reglas de trabajo:
 
 1. **Nadie trabaja en `main`.** Ni para un fix de una línea.
-2. **Una rama por PR**, y el PR se borra al fusionarse. Las ramas
-   fusionadas no se quedan "por si acaso": si el código ya está en
-   `main`, la rama es ruido, y el ruido entrena a la gente a ignorar
-   las ramas.
-3. **La rama se borra después de fusionar**, no antes. Una rama
-   borrada con trabajo sin fusionar es trabajo perdido, y GitHub avisa
-   30 días, que es tiempo de sobra para olvidarlo.
+2. **Un objetivo por PR.** Mantener como máximo un PR de implementación
+   abierto por persona, salvo una dependencia explícita y documentada.
+3. **Revisar y probar antes de fusionar.** Después, borrar la rama.
 
-### Las ramas `Jeff`, `Nigel`, `Yeri` y `Producción`
-
-`Jeff`, `Nigel` y `Yeri` **se borraron**. No eran punteros muertos:
-formaban la línea vieja del repositorio, la de Laravel + Breeze +
-SQLite, de la que salió `Producción`. Su contenido sobrevive ahí, así
-que borrarlas no perdió nada.
-
-`archivo/produccion` es la rama que **se conserva**. Contiene una
-aplicación completa y distinta: Laravel con Breeze y sesiones por un
-lado, un servidor Elysia con SQLite y un cliente React por otro. No se
-fusionó nunca con `main` y no se va a fusionar.
-
-Qué se trajo de ella y qué se descartó está escrito, con razones, en
+El 10 de noviembre de 2026 se cerraron los PR #101–#105 y se eliminaron
+sus ramas y `archivo/produccion`. Ninguno de esos cambios se fusionó a
+`main`. Un bundle local verificado conserva todos los commits:
+`../RoomSearch-branches-2026-11-10.bundle`. Ese archivo debe respaldarse
+fuera de este equipo si se necesita recuperación duradera. Las razones
+históricas del port están en
 [`backend/.ai/rules/port-produccion.md`](backend/.ai/rules/port-produccion.md).
-Léelo **antes** de reabrirla.
+
+La reestructuración móvil y sus etapas están en
+[`docs/restructuring/PLAN.md`](docs/restructuring/PLAN.md).
 
 ## Reglas del proyecto
 
@@ -152,10 +145,14 @@ Solo dos importan:
   `pendiente`.
 - Moderación: `approve` y `reject`, solo para `admin`. Es el único
   camino por el que un inmueble se vuelve visible.
-- Frontend conectado a la API real para **buscar**: mapa Leaflet,
-  lista y tarjetas.
-- Tests: **209** en el backend contra MySQL real, no SQLite, y **68**
-  en el frontend con Vitest.
+- Frontend conectado a la API real para buscar: lista, mapa Leaflet y
+  tarjetas. La búsqueda móvil empieza por la lista; el mapa se consulta
+  al confirmar una zona.
+- El parámetro `area=ciudad-quesada` acota el listado público a
+  habitaciones y apartamentos del distrito registrado como Ciudad
+  Quesada. Es un primer límite por datos existentes; la validación de
+  barrios y del polígono de cobertura está pendiente.
+- Pruebas de backend contra MySQL real y pruebas de frontend con Vitest.
 
 ### Cuentas de demostración
 
@@ -171,17 +168,11 @@ contraseña `password`:
 El registro normal crea inquilinos. Para publicar hay que pasar la
 cuenta a `landlord`.
 
-### Lo que falta
+### Lo que sigue
 
-- **El formulario de publicación (DS-8).** La API está lista y probada
-  de punta a punta, pero en el frontend no hay pantalla: sigue siendo
-  una plataforma de solo lectura para quien la usa. Es el bloqueador
-  principal ahora.
-- **La pantalla de autenticación.** El registro y el login por API
-  existen; en el frontend no hay formulario para nada de eso.
-- **El panel de moderación (RF-7.1).** Las dos rutas de moderar
-  funcionan, pero no hay cola ni panel que las llame.
-- **Fotos (RF-2.3)**, verificación de arrendador (RF-8.1) y
-  favoritos (RF-6.1): los campos ya salen en la API, siempre vacíos.
-- **Probar componentes de React.** Vitest corre, pero solo se prueba
-  lógica suelta: falta React Testing Library para montar un componente.
+El repositorio ya contiene pantallas de acceso, publicación, detalle y
+moderación, además de pruebas de componentes. El objetivo siguiente es
+validar esos recorridos completos en móvil, delimitar el área de servicio
+con datos revisados, resolver la cobertura del mapa y preparar despliegue,
+respaldo y monitoreo. Las etapas y criterios están en
+[`docs/restructuring/PLAN.md`](docs/restructuring/PLAN.md).

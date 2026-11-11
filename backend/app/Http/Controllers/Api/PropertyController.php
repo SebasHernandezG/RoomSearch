@@ -107,6 +107,11 @@ class PropertyController extends Controller
         Builder $consulta,
         ListPropertiesRequest $request,
     ): void {
+        if ($request->input('area') === 'ciudad-quesada') {
+            $consulta->where('district', 'Ciudad Quesada')
+                ->whereIn('type', ['habitacion', 'apartamento']);
+        }
+
         if ($request->filled('type')) {
             $consulta->where('type', $request->string('type')->value());
         }
