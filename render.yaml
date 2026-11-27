@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: roomsearch-qa
+    runtime: docker
+    plan: free
+    numInstances: 1
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DB_DATABASE
+        value: /app/data/roomies.sqlite
+      - key: COOKIE_SECRET
+        generateValue: true
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: VITE_GOOGLE_MAPS_MAP_ID
+        value: DEMO_MAP_ID

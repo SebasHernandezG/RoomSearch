@@ -1,0 +1,16 @@
+**/.env
+**/.env.*
+.git
+.agents
+.ai
+.codex
+node_modules
+vendor
+dist
+database
+storage
+tests
+*.log
+*.sqlite*
+*.key
+auth.json

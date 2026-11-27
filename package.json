@@ -9,6 +9,7 @@
         "dev:web": "node node_modules/vite/bin/vite.js",
         "build": "node node_modules/vite/bin/vite.js build",
         "start": "bun src/server/index.ts",
+        "db:backup": "bun src/server/backup.ts",
         "test": "bun test",
         "typecheck": "node node_modules/typescript/bin/tsc --noEmit"
     },
@@ -21,6 +22,7 @@
         "cn": "^0.3.0",
         "elysia": "^1.4.30",
         "lucide-react": "^1.46.0",
+        "maplibre-gl": "^6.11.2",
         "react": "19.2.8",
         "react-dom": "19.2.8",
         "shadcn": "^4.21.0",

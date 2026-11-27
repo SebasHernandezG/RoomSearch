@@ -1,4 +1,6 @@
 import { Database } from "bun:sqlite";
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 
 export type UserRow = {
     id: number;
@@ -16,6 +18,9 @@ export const hashToken = (token: string) =>
 export const createDatabase = (
     filename = process.env.DB_DATABASE ?? "database/database.sqlite",
 ) => {
+    if (filename !== ":memory:") {
+        mkdirSync(dirname(filename), { recursive: true });
+    }
     const database = new Database(filename, { create: true });
     database.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;");
     database.exec(`

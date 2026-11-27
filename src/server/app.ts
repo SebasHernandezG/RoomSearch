@@ -10,6 +10,7 @@ import {
 import { credentialsSchema, listingSchema, profileSchema, routeSchema } from "./schemas";
 import { createRouteHandler, type RouteOptions } from "./route";
 import { createGoogleAuth, type GoogleAuthOptions } from "./google-auth";
+import { getCookieSecret } from "./config";
 
 type ListingRow = {
     id: number;
@@ -55,6 +56,37 @@ const presentListing = (listing: ListingRow) => ({
     createdAt: listing.created_at,
 });
 
+const validateListingData = (
+    body: {
+        type: "offer" | "search";
+        title: string;
+        description: string;
+        zone?: string | null;
+        latitude?: number | null;
+        longitude?: number | null;
+    },
+    set: { status?: number | string },
+) => {
+    if (body.title.trim().length < 3 || body.description.trim().length < 10) {
+        set.status = 422;
+        return { message: "Escribe un título de al menos 3 caracteres y una descripción de al menos 10 caracteres." };
+    }
+    if (body.type === "search" && !body.zone?.trim()) {
+        set.status = 422;
+        return { message: "Indica la zona en la que buscas vivienda." };
+    }
+
+    if (
+        body.type === "offer" &&
+        (body.latitude == null || body.longitude == null)
+    ) {
+        set.status = 422;
+        return { message: "Marca la ubicación del departamento en el mapa." };
+    }
+
+    return null;
+};
+
 export const createApp = (
     database: RoomiesDatabase = createDatabase(),
     routeOptions: RouteOptions = {},
@@ -66,15 +98,7 @@ export const createApp = (
     return new Elysia({
         name: "roomies-api",
         cookie: {
-            secrets:
-                process.env.COOKIE_SECRET ??
-                (process.env.NODE_ENV === "production"
-                    ? (() => {
-                          throw new Error(
-                              "COOKIE_SECRET is required in production.",
-                          );
-                      })()
-                    : "local-roomies-secret-change-me"),
+            secrets: getCookieSecret(),
             sign: ["roomies_session"],
         },
     })
@@ -131,11 +155,19 @@ export const createApp = (
                     return redirect(googleAuth.home());
                 })
                 .post("/route", routeHandler, { body: routeSchema })
-                .get("/health", () => ({ status: "ok" as const }))
+                .get("/health", () => {
+                    database.query("SELECT 1").get();
+                    return { status: "ok" as const };
+                })
                 .post(
                     "/auth/register",
                     async ({ body, cookie, set }) => {
                         const email = body.email.trim().toLowerCase();
+                        const name = body.name.trim();
+                        if (name.length < 2) {
+                            set.status = 422;
+                            return { message: "Escribe un nombre de al menos 2 caracteres." };
+                        }
                         if (
                             database
                                 .query("SELECT id FROM users WHERE email = ?")
@@ -151,41 +183,34 @@ export const createApp = (
                             body.password,
                             { algorithm: "bcrypt", cost: 12 },
                         );
-                        const result = database
-                            .query(
-                                "INSERT INTO users (name, email, password, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-                            )
-                            .run(
-                                body.name.trim(),
-                                email,
-                                password,
-                                timestamp,
-                                timestamp,
-                            );
-                        database
-                            .query(
-                                "INSERT INTO profiles (user_id, created_at, updated_at) VALUES (?, ?, ?)",
-                            )
-                            .run(result.lastInsertRowid, timestamp, timestamp);
                         const token = crypto.randomUUID() + crypto.randomUUID();
-                        database
-                            .query(
-                                "INSERT INTO auth_sessions (user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?)",
-                            )
-                            .run(
-                                result.lastInsertRowid,
-                                hashToken(token),
-                                new Date(
-                                    Date.now() + 30 * 86400000,
-                                ).toISOString(),
-                                timestamp,
-                            );
+                        const userId = database.transaction(() => {
+                            if (database.query("SELECT id FROM users WHERE email = ?").get(email)) {
+                                return null;
+                            }
+                            const result = database
+                                .query(
+                                    "INSERT INTO users (name, email, password, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+                                )
+                                .run(name, email, password, timestamp, timestamp);
+                            database
+                                .query("INSERT INTO profiles (user_id, created_at, updated_at) VALUES (?, ?, ?)")
+                                .run(result.lastInsertRowid, timestamp, timestamp);
+                            database
+                                .query("INSERT INTO auth_sessions (user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?)")
+                                .run(result.lastInsertRowid, hashToken(token), new Date(Date.now() + 30 * 86400000).toISOString(), timestamp);
+                            return Number(result.lastInsertRowid);
+                        })();
+                        if (userId === null) {
+                            set.status = 409;
+                            return { message: "Ese correo ya está registrado." };
+                        }
                         cookie.roomies_session.value = token;
                         set.status = 201;
                         return {
                             user: {
-                                id: Number(result.lastInsertRowid),
-                                name: body.name.trim(),
+                                id: userId,
+                                name,
                                 email,
                             },
                         };
@@ -341,6 +366,8 @@ export const createApp = (
                             set.status = 401;
                             return { message: "Debes iniciar sesión." };
                         }
+                        const locationError = validateListingData(body, set);
+                        if (locationError) return locationError;
                         const timestamp = now();
                         const result = database
                             .query(
@@ -390,6 +417,8 @@ export const createApp = (
                                 message: "No puedes editar esta publicación.",
                             };
                         }
+                        const locationError = validateListingData(body, set);
+                        if (locationError) return locationError;
                         database
                             .query(
                                 "UPDATE listings SET type = ?, title = ?, description = ?, city = ?, zone = ?, budget = ?, latitude = ?, longitude = ?, is_active = ?, updated_at = ? WHERE id = ?",
@@ -434,6 +463,66 @@ export const createApp = (
                     },
                     { params: t.Object({ id: t.Numeric() }) },
                 )
+                .get("/recommendations", ({ user, set }) => {
+                    if (!user) {
+                        set.status = 401;
+                        return { message: "Debes iniciar sesión." };
+                    }
+
+                    const searches = database
+                        .query<ListingRow, [number]>(`
+                            SELECT listings.*, users.name AS owner_name
+                            FROM listings
+                            JOIN users ON users.id = listings.user_id
+                            WHERE listings.user_id = ?
+                              AND listings.type = 'search'
+                              AND listings.is_active = 1
+                            ORDER BY listings.created_at DESC
+                        `)
+                        .all(user.id);
+                    const offers = database
+                        .query<ListingRow, []>(`
+                            SELECT listings.*, users.name AS owner_name
+                            FROM listings
+                            JOIN users ON users.id = listings.user_id
+                            WHERE listings.type = 'offer'
+                              AND listings.is_active = 1
+                            ORDER BY listings.created_at DESC
+                        `)
+                        .all();
+
+                    const recommendations = searches.flatMap((search) =>
+                        offers
+                            .filter((offer) => {
+                                const requestedZone = search.zone
+                                    ?.trim()
+                                    .toLocaleLowerCase("es-CR");
+                                const offeredZone = offer.zone
+                                    ?.trim()
+                                    .toLocaleLowerCase("es-CR");
+
+                                return (
+                                    offer.user_id !== user.id &&
+                                    offer.city === search.city &&
+                                    Boolean(requestedZone && offeredZone) &&
+                                    (offeredZone!.includes(requestedZone!) ||
+                                        requestedZone!.includes(offeredZone!)) &&
+                                    offer.budget <= search.budget
+                                );
+                            })
+                            .map((offer) => ({
+                                search: presentListing(search),
+                                offer: presentListing(offer),
+                                reasons: [
+                                    `Misma ciudad: ${search.city}`,
+                                    `Zona compatible: ${search.zone}`,
+                                    "Dentro de tu presupuesto",
+                                ],
+                            })),
+                    );
+
+                    return { recommendations };
+                })
                 .get("/profile", ({ user, set }) => {
                     if (!user) {
                         set.status = 401;
@@ -490,6 +579,10 @@ export const createApp = (
                             set.status = 401;
                             return { message: "Debes iniciar sesión." };
                         }
+                        if (!body.message.trim()) {
+                            set.status = 422;
+                            return { message: "Escribe un mensaje para enviar la solicitud." };
+                        }
                         const listing = database
                             .query<
                                 { user_id: number; is_active: number },
@@ -524,7 +617,10 @@ export const createApp = (
                                 );
                             set.status = 201;
                             return { message: "Solicitud enviada." };
-                        } catch {
+                        } catch (error) {
+                            if (!(error instanceof Error) || !("code" in error) || error.code !== "SQLITE_CONSTRAINT_UNIQUE") {
+                                throw error;
+                            }
                             set.status = 409;
                             return {
                                 message:
@@ -565,6 +661,10 @@ export const createApp = (
                         if (!user) {
                             set.status = 401;
                             return { message: "Debes iniciar sesión." };
+                        }
+                        if (!body.reply.trim()) {
+                            set.status = 422;
+                            return { message: "Escribe una respuesta para la solicitud." };
                         }
                         const result = database
                             .query(

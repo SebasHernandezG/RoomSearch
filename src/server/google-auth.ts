@@ -1,5 +1,6 @@
 import { randomBytes, createHash } from "node:crypto";
 import { hashToken, now, type RoomiesDatabase } from "./database";
+import { getGoogleCallback } from "./config";
 
 export type GoogleAuthOptions = {
     clientId?: string;
@@ -15,7 +16,7 @@ const record = (value: unknown): value is Record<string, unknown> =>
 export const createGoogleAuth = (database: RoomiesDatabase, options: GoogleAuthOptions = {}) => {
     const clientId = options.clientId ?? process.env.GOOGLE_CLIENT_ID ?? "";
     const clientSecret = options.clientSecret ?? process.env.GOOGLE_CLIENT_SECRET ?? "";
-    const redirectUri = options.redirectUri ?? process.env.ELYSIA_GOOGLE_REDIRECT_URI ?? "http://localhost:3000/api/auth/google/callback";
+    const redirectUri = options.redirectUri ?? getGoogleCallback();
     const requestGoogle = options.fetch ?? fetch;
     const callback = new URL(redirectUri);
     if (callback.pathname !== "/api/auth/google/callback" || callback.search || callback.hash || callback.username || callback.password ||

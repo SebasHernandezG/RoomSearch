@@ -112,9 +112,11 @@ describe("Roomies Elysia API", () => {
                     type: "offer",
                     title: "Cuarto luminoso",
                     description: "Incluye todos los servicios.",
-                    city: "San José",
-                    zone: "Escalante",
+                    city: "Ciudad Quesada",
+                    zone: "Barrio San Martín",
                     budget: 250000,
+                    latitude: 10.3257,
+                    longitude: -84.43,
                 },
                 cookie,
             ),
@@ -123,7 +125,7 @@ describe("Roomies Elysia API", () => {
 
         const response = await app.handle(
             new Request(
-                "http://localhost/api/listings?city=Escalante&type=offer",
+                "http://localhost/api/listings?city=San%20Mart%C3%ADn&type=offer",
             ),
         );
         const payload = (await response.json()) as {
@@ -145,9 +147,11 @@ describe("Roomies Elysia API", () => {
                     type: "offer",
                     title: "Cuarto luminoso",
                     description: "Incluye todos los servicios.",
-                    city: "San José",
+                    city: "Ciudad Quesada",
                     zone: null,
                     budget: 250000,
+                    latitude: 10.3257,
+                    longitude: -84.43,
                 },
                 ownerCookie,
             ),
@@ -162,14 +166,50 @@ describe("Roomies Elysia API", () => {
                     type: "offer",
                     title: "Título cambiado",
                     description: "Descripción suficientemente larga.",
-                    city: "San José",
+                    city: "Ciudad Quesada",
                     zone: null,
                     budget: 1,
+                    latitude: 10.3257,
+                    longitude: -84.43,
                 },
                 strangerCookie,
             ),
         );
         expect(response.status).toBe(403);
+    });
+
+    it("allows an owner to edit and delete their listing", async () => {
+        const app = createApp(database);
+        const ownerCookie = await register(app, "proposal-owner@example.com");
+        const created = await app.handle(jsonRequest("/api/listings", "POST", {
+            type: "search",
+            title: "Busco apartamento",
+            description: "Busco una opción cerca del centro.",
+            city: "Ciudad Quesada",
+            zone: "San Martín",
+            budget: 50000,
+        }, ownerCookie));
+        const { id } = (await created.json()) as { id: number };
+
+        const updated = await app.handle(jsonRequest(`/api/listings/${id}`, "PUT", {
+            type: "search",
+            title: "Busco dos propuestas",
+            description: "Busco varias opciones cerca del centro.",
+            city: "Florencia",
+            zone: "Centro",
+            budget: 45000,
+        }, ownerCookie));
+        const deleted = await app.handle(jsonRequest(
+            `/api/listings/${id}`,
+            "DELETE",
+            undefined,
+            ownerCookie,
+        ));
+        const missing = await app.handle(new Request(`http://localhost/api/listings/${id}`));
+
+        expect(updated.status).toBe(200);
+        expect(deleted.status).toBe(200);
+        expect(missing.status).toBe(404);
     });
 
     it("supports private interest and owner reply flow", async () => {
@@ -183,8 +223,10 @@ describe("Roomies Elysia API", () => {
                     type: "offer",
                     title: "Cuarto luminoso",
                     description: "Incluye todos los servicios.",
-                    city: "San José",
+                    city: "Ciudad Quesada",
                     budget: 250000,
+                    latitude: 10.3257,
+                    longitude: -84.43,
                 },
                 ownerCookie,
             ),
@@ -221,5 +263,44 @@ describe("Roomies Elysia API", () => {
             ),
         );
         expect(reply.status).toBe(200);
+    });
+
+    it("recommends graph matches by city, zone, and budget", async () => {
+        const app = createApp(database);
+        const ownerCookie = await register(app, "offer-owner@example.com");
+        await app.handle(jsonRequest("/api/listings", "POST", {
+            type: "offer",
+            title: "Apartamento en San Martín",
+            description: "Apartamento disponible cerca del centro.",
+            city: "Ciudad Quesada",
+            zone: "Barrio San Martín",
+            budget: 180000,
+            latitude: 10.3257,
+            longitude: -84.43,
+        }, ownerCookie));
+
+        const seekerCookie = await register(app, "seeker@example.com");
+        await app.handle(jsonRequest("/api/listings", "POST", {
+            type: "search",
+            title: "Busco apartamento",
+            description: "Busco una opción tranquila y céntrica.",
+            city: "Ciudad Quesada",
+            zone: "San Martín",
+            budget: 200000,
+        }, seekerCookie));
+
+        const response = await app.handle(jsonRequest(
+            "/api/recommendations",
+            "GET",
+            undefined,
+            seekerCookie,
+        ));
+        const payload = (await response.json()) as {
+            recommendations: Array<{ offer: { title: string } }>;
+        };
+
+        expect(response.status).toBe(200);
+        expect(payload.recommendations).toHaveLength(1);
+        expect(payload.recommendations[0]?.offer.title).toBe("Apartamento en San Martín");
     });
 });

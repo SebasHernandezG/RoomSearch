@@ -12,9 +12,11 @@ import {
     LogOutIcon,
     MapIcon,
     MoonIcon,
+    PencilIcon,
     PlusIcon,
     SearchIcon,
     SunIcon,
+    Trash2Icon,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -70,6 +72,11 @@ const LocationPicker = lazy(() =>
 );
 
 type ViewMode = "list" | "map";
+type Recommendation = {
+    search: Listing;
+    offer: Listing;
+    reasons: string[];
+};
 type ListingDraft = {
     type: "offer" | "search";
     title: string;
@@ -85,9 +92,9 @@ const emptyDraft: ListingDraft = {
     type: "offer",
     title: "",
     description: "",
-    city: "",
+    city: "Ciudad Quesada",
     zone: "",
-    budget: "",
+    budget: "50000",
     latitude: null,
     longitude: null,
 };
@@ -107,6 +114,8 @@ function ListingsApp({ user, onLogout }: { user: User; onLogout: () => void }) {
         null,
     );
     const [showCreate, setShowCreate] = useState(false);
+    const [editingListing, setEditingListing] = useState<Listing | null>(null);
+    const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
     const [draft, setDraft] = useState(emptyDraft);
     const [dark, setDark] = useState(
         () => localStorage.getItem("roomies-theme") === "dark",
@@ -147,30 +156,82 @@ function ListingsApp({ user, onLogout }: { user: User; onLogout: () => void }) {
         [city, type],
     );
 
-    useEffect(() => {
-        void loadListings("Ciudad Quesada", "");
+    const loadRecommendations = useCallback(async () => {
+        try {
+            const data = await api<{ recommendations: Recommendation[] }>(
+                "/recommendations",
+            );
+            setRecommendations(data.recommendations);
+        } catch {
+            setRecommendations([]);
+        }
     }, []);
 
-    const createListing = async (event: FormEvent) => {
+    useEffect(() => {
+        void loadListings("Ciudad Quesada", "");
+        void loadRecommendations();
+    }, []);
+
+    const saveListing = async (event: FormEvent) => {
         event.preventDefault();
         setError("");
         try {
-            await api("/listings", {
-                method: "POST",
+            await api(
+                editingListing ? `/listings/${editingListing.id}` : "/listings",
+                {
+                method: editingListing ? "PUT" : "POST",
                 body: JSON.stringify({
                     ...draft,
+                    latitude: draft.type === "offer" ? draft.latitude : null,
+                    longitude: draft.type === "offer" ? draft.longitude : null,
                     budget: Number(draft.budget),
                 }),
             });
             setDraft(emptyDraft);
             setShowCreate(false);
+            setEditingListing(null);
             await loadListings();
+            await loadRecommendations();
         } catch (caught) {
             setError(
                 caught instanceof Error
                     ? caught.message
                     : "No fue posible publicar.",
             );
+        }
+    };
+
+    const openCreate = () => {
+        setEditingListing(null);
+        setDraft(emptyDraft);
+        setShowCreate(true);
+    };
+
+    const openEdit = (listing: Listing) => {
+        setEditingListing(listing);
+        setDraft({
+            type: listing.type,
+            title: listing.title,
+            description: listing.description,
+            city: listing.city,
+            zone: listing.zone ?? "",
+            budget: String(listing.budget),
+            latitude: listing.latitude,
+            longitude: listing.longitude,
+        });
+        setShowCreate(true);
+    };
+
+    const deleteListing = async (listing: Listing) => {
+        if (!window.confirm(`¿Eliminar "${listing.title}"? Esta acción no se puede deshacer.`)) return;
+        setError("");
+        try {
+            await api(`/listings/${listing.id}`, { method: "DELETE" });
+            setSelectedListing((current) => current?.id === listing.id ? null : current);
+            await loadListings();
+            await loadRecommendations();
+        } catch (caught) {
+            setError(caught instanceof Error ? caught.message : "No fue posible eliminar la publicación.");
         }
     };
 
@@ -213,7 +274,7 @@ function ListingsApp({ user, onLogout }: { user: User; onLogout: () => void }) {
                             {dark ? <SunIcon /> : <MoonIcon />}
                         </Button>
                         <span className="hidden text-sm text-muted-foreground sm:inline">Hola, {user.name}</span>
-                        <Button onClick={() => setShowCreate(true)}><PlusIcon data-icon="inline-start" />Publicar</Button>
+                        <Button onClick={openCreate}><PlusIcon data-icon="inline-start" />Publicar</Button>
                         <Button onClick={logout} variant="outline">
                             <LogOutIcon data-icon="inline-start" />
                             <span className="hidden sm:inline">Cerrar sesión</span>
@@ -254,17 +315,14 @@ function ListingsApp({ user, onLogout }: { user: User; onLogout: () => void }) {
                             >
                                 <FieldGroup>
                                     <Field>
-                                        <FieldLabel htmlFor="city">
-                                            Ciudad o zona
-                                        </FieldLabel>
-                                        <Input
-                                            id="city"
-                                            value={city}
-                                            onChange={(event) =>
-                                                setCity(event.target.value)
-                                            }
-                                            placeholder="San José, Escalante..."
-                                        />
+                                        <FieldLabel>Ciudad</FieldLabel>
+                                        <Select value={city} onValueChange={(value) => setCity(String(value))}>
+                                            <SelectTrigger className="w-full"><SelectValue>{city}</SelectValue></SelectTrigger>
+                                            <SelectContent><SelectGroup>
+                                                <SelectItem value="Ciudad Quesada">Ciudad Quesada</SelectItem>
+                                                <SelectItem value="Florencia">Florencia</SelectItem>
+                                            </SelectGroup></SelectContent>
+                                        </Select>
                                     </Field>
                                     <Field>
                                         <FieldLabel>Tipo de anuncio</FieldLabel>
@@ -374,6 +432,9 @@ function ListingsApp({ user, onLogout }: { user: User; onLogout: () => void }) {
                                 listings={listings}
                                 selectedListing={selectedListing}
                                 onSelect={setSelectedListing}
+                                currentUserId={user.id}
+                                onEdit={openEdit}
+                                onDelete={(listing) => void deleteListing(listing)}
                             />
                         </Suspense>
                     ) : listings.length === 0 ? (
@@ -429,35 +490,62 @@ function ListingsApp({ user, onLogout }: { user: User; onLogout: () => void }) {
                                                 por {listing.ownerName}
                                             </p>
                                         </div>
-                                        <Button
-                                            variant="ghost"
-                                            onClick={() => {
-                                                setSelectedListing(listing);
-                                                setViewMode("map");
-                                            }}
-                                        >
-                                            Ver mapa
-                                            <ArrowRightIcon data-icon="inline-end" />
-                                        </Button>
+                                        {listing.ownerId === user.id ? (
+                                            <div className="flex gap-1">
+                                                <Button variant="outline" onClick={() => openEdit(listing)}><PencilIcon data-icon="inline-start" />Editar</Button>
+                                                <Button variant="destructive" onClick={() => void deleteListing(listing)}><Trash2Icon data-icon="inline-start" />Eliminar</Button>
+                                            </div>
+                                        ) : listing.type === "offer" ? (
+                                            <Button variant="ghost" onClick={() => { setSelectedListing(listing); setViewMode("map"); }}>
+                                                Ver mapa <ArrowRightIcon data-icon="inline-end" />
+                                            </Button>
+                                        ) : (
+                                            <Badge variant="outline">Busca en {listing.zone}</Badge>
+                                        )}
                                     </CardFooter>
                                 </Card>
                             ))}
                         </div>
                     )}
                 </section>
+
+                {recommendations.length > 0 && (
+                    <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
+                        <p className="text-sm font-medium text-primary">Coincidencias para tus búsquedas</p>
+                        <h2 className="mt-1 text-2xl font-semibold tracking-tight">Recomendadas por zona y presupuesto</h2>
+                        <div className="mt-5 grid gap-4 md:grid-cols-2">
+                            {recommendations.map(({ search, offer, reasons }) => (
+                                <Card key={`${search.id}-${offer.id}`}>
+                                    <CardHeader>
+                                        <CardDescription>Para “{search.title}”</CardDescription>
+                                        <CardTitle>{offer.title}</CardTitle>
+                                    </CardHeader>
+                                    <CardContent><p className="text-sm text-muted-foreground">{reasons.join(" · ")}</p></CardContent>
+                                    <CardFooter className="justify-between">
+                                        <span className="font-semibold">₡{offer.budget.toLocaleString("es-CR")}</span>
+                                        <Button variant="outline" onClick={() => { setSelectedListing(offer); setViewMode("map"); }}>
+                                            Ver oferta <ArrowRightIcon data-icon="inline-end" />
+                                        </Button>
+                                    </CardFooter>
+                                </Card>
+                            ))}
+                        </div>
+                    </section>
+                )}
             </main>
 
             <Dialog open={showCreate} onOpenChange={setShowCreate}>
                 <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
                     <form
-                        onSubmit={createListing}
+                        onSubmit={saveListing}
                         className="flex flex-col gap-6"
                     >
                         <DialogHeader>
-                            <DialogTitle>Publica un departamento</DialogTitle>
+                            <DialogTitle>{editingListing ? "Edita tu publicación" : "Crea una publicación"}</DialogTitle>
                             <DialogDescription>
-                                Agrega la información y marca la entrada exacta
-                                en el mapa.
+                                {draft.type === "offer"
+                                    ? "Agrega la información y marca la entrada en el mapa."
+                                    : "Indica ciudad, zona y presupuesto para encontrar coincidencias."}
                             </DialogDescription>
                         </DialogHeader>
                         <FieldGroup>
@@ -470,6 +558,8 @@ function ListingsApp({ user, onLogout }: { user: User; onLogout: () => void }) {
                                             setDraft({
                                                 ...draft,
                                                 type: value as ListingDraft["type"],
+                                                latitude: value === "search" ? null : draft.latitude,
+                                                longitude: value === "search" ? null : draft.longitude,
                                             })
                                         }
                                     >
@@ -501,6 +591,8 @@ function ListingsApp({ user, onLogout }: { user: User; onLogout: () => void }) {
                                         required
                                         type="number"
                                         min="0"
+                                        step="1000"
+                                        placeholder="50000"
                                         value={draft.budget}
                                         onChange={(event) =>
                                             setDraft({
@@ -528,25 +620,24 @@ function ListingsApp({ user, onLogout }: { user: User; onLogout: () => void }) {
                             </Field>
                             <div className="grid gap-5 sm:grid-cols-2">
                                 <Field>
-                                    <FieldLabel htmlFor="listing-city">
-                                        Ciudad
-                                    </FieldLabel>
-                                    <Input
-                                        id="listing-city"
-                                        required
+                                    <FieldLabel>Ciudad</FieldLabel>
+                                    <Select
                                         value={draft.city}
-                                        onChange={(event) =>
-                                            setDraft({
-                                                ...draft,
-                                                city: event.target.value,
-                                            })
-                                        }
-                                    />
+                                        onValueChange={(value) => setDraft({ ...draft, city: String(value) })}
+                                    >
+                                        <SelectTrigger className="w-full"><SelectValue>{draft.city}</SelectValue></SelectTrigger>
+                                        <SelectContent><SelectGroup>
+                                            <SelectItem value="Ciudad Quesada">Ciudad Quesada</SelectItem>
+                                            <SelectItem value="Florencia">Florencia</SelectItem>
+                                        </SelectGroup></SelectContent>
+                                    </Select>
                                 </Field>
                                 <Field>
                                     <FieldLabel htmlFor="zone">Zona</FieldLabel>
                                     <Input
                                         id="zone"
+                                        required={draft.type === "search"}
+                                        placeholder="Ej. Barrio San Martín"
                                         value={draft.zone}
                                         onChange={(event) =>
                                             setDraft({
@@ -557,7 +648,7 @@ function ListingsApp({ user, onLogout }: { user: User; onLogout: () => void }) {
                                     />
                                 </Field>
                             </div>
-                            <Field>
+                            {draft.type === "offer" && <Field>
                                 <FieldLabel htmlFor="description">
                                     Descripción
                                 </FieldLabel>
@@ -574,7 +665,7 @@ function ListingsApp({ user, onLogout }: { user: User; onLogout: () => void }) {
                                         })
                                     }
                                 />
-                            </Field>
+                            </Field>}
                             <Field>
                                 <FieldLabel>
                                     Ubicación del departamento
@@ -613,19 +704,19 @@ function ListingsApp({ user, onLogout }: { user: User; onLogout: () => void }) {
                             <Button
                                 type="button"
                                 variant="outline"
-                                onClick={() => setShowCreate(false)}
+                                onClick={() => { setShowCreate(false); setEditingListing(null); setDraft(emptyDraft); }}
                             >
                                 Cancelar
                             </Button>
                             <Button
                                 type="submit"
                                 disabled={
-                                    draft.latitude == null ||
-                                    draft.longitude == null
+                                    (draft.type === "offer" && (draft.latitude == null || draft.longitude == null)) ||
+                                    (draft.type === "search" && !draft.zone.trim())
                                 }
                             >
-                                <MapIcon data-icon="inline-start" />
-                                Publicar con ubicación
+                                {draft.type === "offer" ? <MapIcon data-icon="inline-start" /> : <SearchIcon data-icon="inline-start" />}
+                                {editingListing ? "Guardar cambios" : draft.type === "offer" ? "Publicar oferta" : "Publicar búsqueda"}
                             </Button>
                         </DialogFooter>
                     </form>

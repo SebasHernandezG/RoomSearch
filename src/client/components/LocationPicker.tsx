@@ -1,121 +1,104 @@
 import { MapPinIcon } from "lucide-react";
+import { Map as MapLibreMap, Marker, setWorkerUrl, type LngLatBoundsLike, type StyleSpecification } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+import mapLibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { useEffect, useRef, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { loadMapsLibrary, loadMarkerLibrary } from "@/client/lib/google-maps";
+
+setWorkerUrl(mapLibreWorkerUrl);
 
 type Coordinates = { latitude: number; longitude: number };
+const sanCarlosBounds: LngLatBoundsLike = [[-84.57, 10.25], [-84.35, 10.47]];
+const pickerStyle: StyleSpecification = {
+    version: 8,
+    sources: {
+        openstreetmap: {
+            type: "raster",
+            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+            tileSize: 256,
+            attribution: "© OpenStreetMap contributors",
+            maxzoom: 19,
+        },
+    },
+    layers: [{
+        id: "openstreetmap",
+        type: "raster",
+        source: "openstreetmap",
+        paint: { "raster-saturation": -0.3, "raster-contrast": 0.08 },
+    }],
+};
 
-export function LocationPicker({
-    value,
-    onChange,
-}: {
+export function LocationPicker({ value, onChange }: {
     value: Coordinates | null;
     onChange: (coordinates: Coordinates) => void;
 }) {
     const containerRef = useRef<HTMLDivElement>(null);
+    const mapRef = useRef<MapLibreMap | null>(null);
+    const markerRef = useRef<Marker | null>(null);
+    const onChangeRef = useRef(onChange);
     const [error, setError] = useState("");
+    onChangeRef.current = onChange;
 
     useEffect(() => {
-        if (!containerRef.current || !import.meta.env.VITE_GOOGLE_MAPS_API_KEY)
-            return;
-        let marker: google.maps.marker.AdvancedMarkerElement | null = null;
-        let cancelled = false;
-
-        const initialize = async () => {
-            try {
-                const [{ Map }, { AdvancedMarkerElement }] = await Promise.all([
-                    loadMapsLibrary(),
-                    loadMarkerLibrary(),
-                ]);
-                if (cancelled || !containerRef.current) return;
-                const center = value
-                    ? { lat: value.latitude, lng: value.longitude }
-                    : { lat: 9.9281, lng: -84.0907 };
-                const map = new Map(containerRef.current, {
-                    center,
-                    zoom: value ? 16 : 10,
-                    mapId:
-                        import.meta.env.VITE_GOOGLE_MAPS_MAP_ID ||
-                        "DEMO_MAP_ID",
-                    disableDefaultUI: true,
-                    zoomControl: true,
+        if (!containerRef.current || mapRef.current) return;
+        try {
+            const map = new MapLibreMap({
+                container: containerRef.current,
+                style: pickerStyle,
+                center: value ? [value.longitude, value.latitude] : [-84.4596, 10.3596],
+                zoom: value ? 15 : 11.6,
+                minZoom: 11,
+                maxZoom: 17,
+                maxBounds: sanCarlosBounds,
+                attributionControl: false,
+            });
+            const resizeObserver = new ResizeObserver(() => map.resize());
+            resizeObserver.observe(containerRef.current);
+            const placeMarker = (longitude: number, latitude: number) => {
+                markerRef.current?.remove();
+                markerRef.current = new Marker({ color: "#166534", draggable: true })
+                    .setLngLat([longitude, latitude])
+                    .addTo(map);
+                markerRef.current.on("dragend", () => {
+                    const position = markerRef.current!.getLngLat();
+                    onChangeRef.current({ latitude: position.lat, longitude: position.lng });
                 });
-                const setMarker = (position: google.maps.LatLngLiteral) => {
-                    if (marker) marker.map = null;
-                    marker = new AdvancedMarkerElement({
-                        map,
-                        position,
-                        gmpDraggable: true,
-                        title: "Ubicación del departamento",
-                    });
-                    marker.addListener("dragend", () => {
-                        const next = marker?.position;
-                        if (next && "lat" in next) {
-                            const latitude =
-                                typeof next.lat === "function"
-                                    ? next.lat()
-                                    : next.lat;
-                            const longitude =
-                                typeof next.lng === "function"
-                                    ? next.lng()
-                                    : next.lng;
-                            onChange({ latitude, longitude });
-                        }
-                    });
-                };
-                if (value) setMarker(center);
-                map.addListener("click", (event: google.maps.MapMouseEvent) => {
-                    const position = event.latLng?.toJSON();
-                    if (!position) return;
-                    setMarker(position);
-                    onChange({
-                        latitude: position.lat,
-                        longitude: position.lng,
-                    });
-                });
-            } catch (caught) {
-                setError(
-                    caught instanceof Error
-                        ? caught.message
-                        : "No fue posible abrir el selector de ubicación.",
-                );
-            }
-        };
-        void initialize();
-        return () => {
-            cancelled = true;
-            if (marker) marker.map = null;
-        };
+            };
+            if (value) placeMarker(value.longitude, value.latitude);
+            map.on("click", ({ lngLat }) => {
+                placeMarker(lngLat.lng, lngLat.lat);
+                onChangeRef.current({ latitude: lngLat.lat, longitude: lngLat.lng });
+            });
+            map.on("error", (event) => {
+                if (!event.error?.message.includes("tile")) {
+                    setError("No pudimos abrir el mapa. Revisa tu conexión.");
+                }
+            });
+            mapRef.current = map;
+            return () => {
+                resizeObserver.disconnect();
+                markerRef.current?.remove();
+                markerRef.current = null;
+                map.remove();
+                mapRef.current = null;
+            };
+        } catch {
+            setError("No pudimos abrir el mapa en este navegador.");
+        }
     }, []);
-
-    if (!import.meta.env.VITE_GOOGLE_MAPS_API_KEY) {
-        return (
-            <Alert>
-                <MapPinIcon />
-                <AlertTitle>Configura Google Maps</AlertTitle>
-                <AlertDescription>
-                    Agrega la clave para seleccionar la ubicación exacta del
-                    departamento.
-                </AlertDescription>
-            </Alert>
-        );
-    }
 
     return (
         <div className="flex flex-col gap-2">
-            <div
-                ref={containerRef}
-                className="h-72 overflow-hidden rounded-lg border border-border"
-                aria-label="Selecciona la ubicación del departamento"
-            />
+            <div ref={containerRef} className="h-72 overflow-hidden rounded-lg border border-border" aria-label="Selecciona una ubicación en San Carlos" />
             <p className="text-sm text-muted-foreground">
-                Haz clic sobre el mapa y arrastra el marcador para ajustar la
-                entrada del departamento.
+                Haz clic en Ciudad Quesada o Florencia y arrastra el marcador para ajustar la ubicación.
             </p>
             {error && (
-                <p role="alert" className="text-sm text-destructive">
-                    {error}
-                </p>
+                <Alert variant="destructive">
+                    <MapPinIcon />
+                    <AlertTitle>Mapa no disponible</AlertTitle>
+                    <AlertDescription>{error}</AlertDescription>
+                </Alert>
             )}
         </div>
     );

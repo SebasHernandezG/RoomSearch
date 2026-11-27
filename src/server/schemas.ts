@@ -19,7 +19,10 @@ export const listingSchema = t.Object({
     type: t.Union([t.Literal("offer"), t.Literal("search")]),
     title: t.String({ minLength: 3, maxLength: 255 }),
     description: t.String({ minLength: 10, maxLength: 5000 }),
-    city: t.String({ minLength: 2, maxLength: 100 }),
+    city: t.Union([
+        t.Literal("Ciudad Quesada"),
+        t.Literal("Florencia"),
+    ]),
     zone: t.Optional(t.Nullable(t.String({ maxLength: 100 }))),
     budget: t.Number({ minimum: 0, maximum: 10000000 }),
     latitude: t.Optional(t.Nullable(t.Number({ minimum: -90, maximum: 90 }))),
